@@ -8,16 +8,16 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./builder": {
-      "types": "./src/builder.ts",
-      "import": "./src/builder.ts"
+      "types": "./dist/builder.d.ts",
+      "import": "./dist/builder.js"
     },
     "./evaluate/browser": {
-      "types": "./src/evaluate/browser.ts",
-      "import": "./src/evaluate/browser.ts"
+      "types": "./dist/evaluate/browser.d.ts",
+      "import": "./dist/evaluate/browser.js"
     }
   },
   "peerDependencies": {
@@ -38,7 +38,7 @@
     "vitest": "^0.28.3"
   },
   "files": [
-    "src"
+    "dist"
   ],
   "scripts": {
     "build": "vite build",
