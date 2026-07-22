@@ -1,5 +1,6 @@
 "use client";
 
+import { Group, NumberInput, SimpleGrid, Stack, Text, UnstyledButton } from "@mantine/core";
 import { WandSparkles } from "lucide-react";
 import type { TrayParams } from "@/app/lib/model";
 import { dispVal, toMm, type Units } from "@/app/lib/units";
@@ -7,105 +8,140 @@ import { dispVal, toMm, type Units } from "@/app/lib/units";
 export type SettingsFlag = "height" | "wall" | "side" | "bottom";
 
 // Each field maps a flag to the TrayParams key it edits, plus its clamp range.
+// Only the numeric TrayParams keys are editable here.
+type NumericParamKey = {
+  [K in keyof TrayParams]: TrayParams[K] extends number ? K : never;
+}[keyof TrayParams];
+
+// `flag` is omitted for fields that have no auto mode.
 const FIELDS: Array<{
-  flag: SettingsFlag;
-  key: keyof TrayParams;
+  flag?: SettingsFlag;
+  key: NumericParamKey;
   label: string;
   min: number;
   max: number;
   step?: number;
 }> = [
-  { flag: "height", key: "depth", label: "HEIGHT", min: 6, max: 120 },
-  { flag: "wall", key: "wallThickness", label: "WALL WIDTH", min: 0.4, max: 6, step: 0.2 },
-  { flag: "side", key: "sideFillet", label: "SIDE FILLET", min: 0, max: 20 },
-  { flag: "bottom", key: "bottomFillet", label: "BOTTOM FILLET", min: 0, max: 20 },
+  { flag: "height", key: "depth", label: "Height", min: 6, max: 120 },
+  { flag: "wall", key: "wallThickness", label: "Wall width", min: 0.4, max: 6, step: 0.2 },
+  { key: "outerWallThickness", label: "Outer wall", min: 0.4, max: 6, step: 0.2 },
+  { flag: "side", key: "sideFillet", label: "Side fillet", min: 0, max: 20 },
+  { flag: "bottom", key: "bottomFillet", label: "Bottom fillet", min: 0, max: 20 },
 ];
 
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
-}
-
-function Field({
+/** Numeric field in display units. When `onToggleAuto` is given the label
+ * doubles as the auto-mode toggle. */
+export function Field({
   value,
   units,
-  auto,
+  auto = false,
   step,
+  min,
+  max,
   onChange,
   onToggleAuto,
   label,
 }: {
   value: number;
   units: Units;
-  auto: boolean;
+  auto?: boolean;
   step?: number;
+  min?: number;
+  max?: number;
   onChange: (mm: number) => void;
-  onToggleAuto: () => void;
+  onToggleAuto?: () => void;
   label: string;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          background: "transparent",
-          border: "1px solid #d8cfbf",
-          borderRadius: 10,
-          padding: "0 4px 0 6px",
-          height: 34,
-        }}
-      >
-        <input
-          type="number"
-          aria-label={label}
-          step={step ?? 1}
-          value={dispVal(value, units)}
-          disabled={auto}
-          onChange={(e) => {
-            const v = Number.parseFloat(e.target.value);
-            if (!Number.isNaN(v)) {
-              onChange(toMm(v, units));
-            }
-          }}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            height: 32,
-            border: "none",
-            background: "transparent",
-            textAlign: "center",
-            font: "700 15px 'Space Mono', monospace",
-            color: auto ? "#a89e88" : "#1c1a17",
-          }}
-        />
-        <span style={{ font: "600 9px 'Instrument Sans'", color: "#8a8377", paddingRight: 4 }}>
+    <NumberInput
+      // Label sits *below* the box and doubles as the auto-mode toggle.
+      inputWrapperOrder={["input", "label"]}
+      labelProps={{ mt: 7, fz: 9, fw: 600 }}
+      label={
+        <Group gap={5} wrap="nowrap" justify="center">
+          {onToggleAuto ? (
+            <UnstyledButton
+              component="span"
+              onClick={onToggleAuto}
+              title={`Auto ${label.toLowerCase()}`}
+            >
+              <Group gap={5} wrap="nowrap">
+                <WandSparkles
+                  size={12}
+                  color={`var(--mantine-color-${auto ? "rust" : "sand"}-6)`}
+                />
+                <Text inherit tt="uppercase" lts=".06em" c={auto ? "rust.6" : "sand.8"}>
+                  {label}
+                </Text>
+              </Group>
+            </UnstyledButton>
+          ) : (
+            <Text inherit tt="uppercase" lts=".06em" c="sand.8">
+              {label}
+            </Text>
+          )}
+        </Group>
+      }
+      value={dispVal(value, units)}
+      disabled={auto}
+      step={step ?? 1}
+      min={min}
+      max={max}
+      clampBehavior="blur"
+      radius="md"
+      styles={{
+        input: {
+          textAlign: "center",
+          fontFamily: "var(--mantine-font-family-monospace)",
+          fontWeight: 700,
+        },
+      }}
+      rightSection={
+        <Text fz={9} fw={600} c="sand.8">
           {units}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onToggleAuto}
-        title={`Auto ${label.toLowerCase()}`}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 5,
-          marginTop: 7,
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: 0,
-        }}
-      >
-        <WandSparkles size={12} color={auto ? "#c2603a" : "#8a8377"} />
-        <span
-          style={{ font: "600 9px 'Instrument Sans'", color: "#8a8377", letterSpacing: ".06em" }}
-        >
-          {label}
-        </span>
-      </button>
-    </div>
+        </Text>
+      }
+      rightSectionWidth={26}
+      rightSectionPointerEvents="none"
+      hideControls
+      onChange={(v) => {
+        if (typeof v === "number") {
+          onChange(toMm(v, units));
+        }
+      }}
+    />
+  );
+}
+
+/** Shared section shell for the control rail: every panel gets the same
+ * padding, hairline top rule, and uppercase monospace heading. */
+export function Section({
+  title,
+  action,
+  children,
+  ...rest
+}: {
+  title: string;
+  /** Optional control rendered inline, right-aligned against the heading. */
+  action?: React.ReactNode;
+  children: React.ReactNode;
+} & Omit<React.ComponentProps<typeof Stack>, "title">) {
+  return (
+    <Stack
+      gap="sm"
+      px="lg"
+      py="md"
+      style={{ borderTop: "1px solid var(--mantine-color-sand-5)" }}
+      {...rest}
+    >
+      <Group justify="space-between" mih={26}>
+        <Text size="xs" ff="monospace" fw={700} c="sand.8" tt="uppercase" lts=".14em">
+          {title}
+        </Text>
+        {action}
+      </Group>
+      {children}
+    </Stack>
   );
 }
 
@@ -123,48 +159,31 @@ export function TraySettingsBand({
   onToggleAuto: (flag: SettingsFlag) => void;
 }) {
   return (
-    <div
-      style={{
-        flex: "none",
-        margin: "14px 0 0",
-        background: "#e7ded0",
-        padding: "14px 20px 15px",
-      }}
-    >
-      <div
-        style={{
-          font: "700 10px 'Space Mono', monospace",
-          color: "#8a8377",
-          letterSpacing: ".14em",
-          marginBottom: 12,
-        }}
-      >
-        TRAY SETTINGS
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
-          gap: "14px 10px",
-        }}
-      >
+    <Section title="Tray settings">
+      <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs" verticalSpacing="sm">
         {FIELDS.map((f) => (
           <Field
-            key={f.flag}
+            key={f.key}
             label={f.label}
             value={params[f.key]}
             units={units}
-            auto={auto[f.flag]}
+            auto={f.flag ? auto[f.flag] : false}
             step={f.step}
+            min={f.min}
+            max={f.max}
             onChange={(mm) => {
-              onChange({ [f.key]: clamp(mm, f.min, f.max) });
+              onChange({ [f.key]: mm });
             }}
-            onToggleAuto={() => {
-              onToggleAuto(f.flag);
-            }}
+            onToggleAuto={
+              f.flag
+                ? () => {
+                    onToggleAuto(f.flag as SettingsFlag);
+                  }
+                : undefined
+            }
           />
         ))}
-      </div>
-    </div>
+      </SimpleGrid>
+    </Section>
   );
 }

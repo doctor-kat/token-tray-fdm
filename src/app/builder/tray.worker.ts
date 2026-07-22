@@ -6,6 +6,7 @@
 
 import * as replicad from "replicad";
 import opencascade from "replicad-opencascadejs/src/replicad_single.js";
+import { combineMeshes } from "@/app/lib/mesh";
 import { buildTray, type SplitNode, type TrayParams } from "@/app/lib/model";
 
 let ocReady: Promise<void> | null = null;
@@ -19,8 +20,10 @@ async function initOC() {
         locateFile: () => string;
       }) => Promise<unknown>;
       const OC = await init({
-        // Wasm is copied to /public by the postinstall step.
-        locateFile: () => "/replicad_single.wasm",
+        // Let the bundler resolve and fingerprint the kernel next to this
+        // chunk, rather than relying on a copy in /public.
+        locateFile: () =>
+          new URL("replicad-opencascadejs/src/replicad_single.wasm", import.meta.url).href,
       });
       replicad.setOC(OC as any);
     })();
@@ -50,11 +53,16 @@ globalThis.onmessage = async (e: MessageEvent<InMessage>) => {
   const message = e.data;
   try {
     await initOC();
-    const shape = buildTray(replicad, message.params, message.structure);
+    const parts = buildTray(replicad, message.params, message.structure);
 
     if (message.type === "build") {
-      const faces = shape.mesh({ tolerance: 0.1, angularTolerance: 30 });
-      const edges = shape.meshEdges();
+      // Mesh each part on its own so its normals stay correct, then merge the
+      // buffers into one geometry for the viewer.
+      const meshed = parts.map((part) => ({
+        faces: part.shape.mesh({ tolerance: 0.05, angularTolerance: 30 }),
+        edges: part.shape.meshEdges({ keepMesh: true }),
+      }));
+      const { faces, edges } = combineMeshes(meshed);
       globalThis.postMessage({
         type: "built",
         id: message.id,
@@ -65,6 +73,12 @@ globalThis.onmessage = async (e: MessageEvent<InMessage>) => {
     }
 
     if (message.type === "export") {
+      // One downloadable file: fuse the parts into a compound (export doesn't
+      // depend on the shading normals that the compound would disturb).
+      const shape =
+        parts.length === 1
+          ? parts[0].shape
+          : replicad.makeCompound(parts.map((part) => part.shape));
       const blob = message.format === "stl" ? shape.blobSTL() : shape.blobSTEP();
 
       globalThis.postMessage({

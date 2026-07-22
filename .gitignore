@@ -11,8 +11,5 @@ next-env.d.ts
 /build
 *.tsbuildinfo
 
-# generated (copied from node_modules on postinstall)
-/public/replicad_single.wasm
-
 # env
 .env*.local

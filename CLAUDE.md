@@ -6,11 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Use **bun** (not npm) for all package and script commands.
 
-- `bun install` — installs deps; `postinstall` runs `scripts/copy-wasm.mjs`, copying the OpenCascade WASM kernel into `public/replicad_single.wasm`
+- `bun install` — installs deps (no postinstall step; the WASM kernel is resolved by the bundler — see below)
 - `bun run dev` — Next.js dev server
 - `bun run build` / `bun run start` — production build / serve
 - `bun run lint` — `biome check .` (lint + format check); `bun run lint:fix` applies safe fixes; `bun run format` formats only. Config in `biome.json` (filename convention allows `kebab-case`, `camelCase`, and `PascalCase` — see Conventions below). The `noExplicitAny` warnings on the replicad boolean/fillet chains are deliberate (see below) — leave them.
-- `bun run copy-wasm` — manually re-copy the WASM kernel (needed if `public/replicad_single.wasm` is missing)
 
 There is no test suite.
 
@@ -56,7 +55,7 @@ The routable/framework files also sit directly in `src/app/`: `layout.tsx`, `pag
 
 ### WASM/worker build config
 
-`next.config.mjs` enables `asyncWebAssembly` and stubs Node builtins (`fs`/`path`/`crypto`) to `false` so the emscripten glue loads in the browser/worker. The kernel `.wasm` is served from `/public` (via the copy-wasm script) and fetched at runtime through `locateFile`.
+Next 16 builds with **Turbopack** by default, which handles async WASM natively. `next.config.mjs` aliases the Node builtins the emscripten glue references (`fs`/`path`/`crypto`) to `stubs/empty.mjs`, since Turbopack has no `resolve.fallback` equivalent. The old `webpack()` block is kept so `next build --webpack` still works as an escape hatch — **change both if you touch either**. The kernel `.wasm` is resolved by the bundler: `tray.worker.ts` hands emscripten's `locateFile` a `new URL("replicad-opencascadejs/src/replicad_single.wasm", import.meta.url).href`. Turbopack statically analyses that exact expression, emits the file to `/_next/static/media/` with a content hash, and rewrites the URL — so there is **no `public/` copy and no postinstall step**, and the kernel re-syncs automatically when `replicad-opencascadejs` is upgraded. Keep the specifier a literal inside `new URL(...)`; hoisting it to a variable defeats the static analysis and the asset silently stops being emitted.
 
 ## Conventions
 
@@ -66,5 +65,8 @@ The routable/framework files also sit directly in `src/app/`: `layout.tsx`, `pag
   - Utilities / domain logic / config → **lowercase** kebab-case (`model.ts`, `tree-ops.ts`, `tray.worker.ts`).
   - Next.js App Router files stay their framework-mandated lowercase (`page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`).
   - The disk filename must exactly match the case used in imports — Windows/macOS are case-insensitive but git and Linux CI are not.
-- UI is shadcn/ui (Radix + Tailwind); shared primitives would live in `src/components/ui/`, `@/` aliases `src/`.
+- UI is **Mantine** (`@mantine/core` + `@mantine/hooks`). `@/` aliases `src/`.
+  - **Prefer stock Mantine components and props over hand-rolled markup or inline styles.** Reach for `Stack`/`Group`/`SimpleGrid` for layout and the style props (`p`, `bg`, `c`, `fw`) rather than `style={{}}`.
+  - The palette and fonts live in `src/app/theme.ts` — two custom color tuples (`rust`, the primary accent, and `sand`, the warm paper surfaces). Use theme colors (`bg="sand.4"`, `c="rust.6"`) instead of hex literals.
+  - `PlanView.tsx` deliberately does **not** use Mantine: it hand-draws the 2D compartment layout, so its hover styles stay in `globals.css`.
 - `token-tray-fdm.js` at the repo root is the original reverse-engineered generator that `src/app/lib/model.ts` was adapted from — reference only, not part of the build.

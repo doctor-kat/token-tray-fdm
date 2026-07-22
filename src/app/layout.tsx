@@ -1,5 +1,7 @@
+import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, Space_Mono } from "next/font/google";
+import { theme } from "./theme";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({
@@ -21,17 +23,24 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Token Tray (FDM)",
   description:
-    "Parametric FDM-friendly token tray generator — a Next.js + shadcn rebuild of deckinabox's token-tray-fdm, powered by replicad.",
+    "Parametric FDM-friendly token tray generator — a Next.js + Mantine rebuild of deckinabox's token-tray-fdm, powered by replicad.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      suppressHydrationWarning
+      {...mantineHtmlProps}
       className={`${bricolage.variable} ${instrument.variable} ${spaceMono.variable}`}
     >
-      <body className="antialiased">{children}</body>
+      <head>
+        <ColorSchemeScript defaultColorScheme="light" />
+      </head>
+      <body>
+        <MantineProvider theme={theme} defaultColorScheme="light">
+          {children}
+        </MantineProvider>
+      </body>
     </html>
   );
 }

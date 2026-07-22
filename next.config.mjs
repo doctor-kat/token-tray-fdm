@@ -1,11 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Turbopack (the Next 16 default) handles async WASM natively, so the kernel
+  // needs no experiment flag here. The emscripten glue still references Node
+  // builtins that don't exist in the browser/worker — alias them to an empty
+  // module (Turbopack has no `resolve.fallback` equivalent).
+  turbopack: {
+    resolveAlias: {
+      fs: "./stubs/empty.mjs",
+      path: "./stubs/empty.mjs",
+      crypto: "./stubs/empty.mjs",
+    },
+  },
+  // Kept so `next build --webpack` still works as an escape hatch.
   webpack(config) {
-    // Replicad-opencascadejs ships a .wasm file loaded at runtime; make sure
-    // webpack leaves the async wasm loading to the worker.
     config.experiments = { ...config.experiments, asyncWebAssembly: true };
-    // The emscripten glue references Node builtins that don't exist in the
-    // browser/worker; stub them out.
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,

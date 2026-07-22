@@ -1,11 +1,14 @@
+import { Center, Loader, Stack, Text } from "@mantine/core";
+
 export default function Loading() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-muted-foreground">
-      <div
-        aria-hidden
-        className="size-8 animate-spin rounded-full border-2 border-current border-t-transparent"
-      />
-      <p className="text-sm font-medium">Loading the tray workshop…</p>
-    </div>
+    <Center mih="100dvh">
+      <Stack align="center" gap="sm">
+        <Loader size="md" />
+        <Text size="sm" fw={500} c="dimmed">
+          Loading the tray workshop…
+        </Text>
+      </Stack>
+    </Center>
   );
 }

@@ -1,23 +1,31 @@
 "use client";
 
+import { Badge, Box } from "@mantine/core";
 import * as React from "react";
 import { syncFaces, syncLines, syncLinesFromFaces } from "replicad-threejs-helper";
 import {
+  ACESFilmicToneMapping,
   AmbientLight,
   Box3,
+  BufferGeometry,
   Color,
   DirectionalLight,
+  GridHelper,
   Group,
-  LineBasicMaterial,
-  LineSegments,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
   Scene,
+  Sphere,
+  Timer,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type { MeshData } from "@/app/lib/mesh";
 
 export type { MeshData };
@@ -30,9 +38,15 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
         scene: Scene;
         camera: PerspectiveCamera;
         controls: OrbitControls;
+        viewHelper: ViewHelper;
+        timer: Timer;
+        grid: GridHelper;
         group: Group;
         faceMesh: Mesh;
-        lines: LineSegments;
+        edgeSrc: BufferGeometry;
+        lineGeom: LineSegmentsGeometry;
+        lines: LineSegments2;
+        lineMaterial: LineMaterial;
         raf: number;
       }
     | undefined
@@ -49,28 +63,49 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     const scene = new Scene();
     scene.background = null;
 
-    const camera = new PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 1, 2000);
+    const camera = new PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 1, 4000);
     camera.position.set(160, -160, 140);
     camera.up.set(0, 0, 1);
 
     const renderer = new WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(mount.clientWidth, mount.clientHeight);
+    // Match the reference viewer's filmic look — nicer highlight roll-off so
+    // edges read crisply against the shaded faces.
+    renderer.toneMapping = ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    // ViewHelper draws as an overlay, so we clear manually in the loop.
+    renderer.autoClear = false;
     mount.append(renderer.domElement);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
+    const viewHelper = new ViewHelper(camera, renderer.domElement);
+    viewHelper.setLabels("X", "Y", "Z");
+
     scene.add(new AmbientLight(0xff_ff_ff, 0.6));
-    const key = new DirectionalLight(0xff_ff_ff, 1.6);
+    const key = new DirectionalLight(0xff_ff_ff, 1.8);
     key.position.set(120, -180, 260);
     scene.add(key);
-    const fill = new DirectionalLight(0xff_ff_ff, 0.6);
+    const fill = new DirectionalLight(0xff_ff_ff, 0.7);
     fill.position.set(-160, 120, 80);
     scene.add(fill);
 
+    const isDark = document.documentElement.classList.contains("dark");
+
+    // Ground grid in the XY plane (replicad is Z-up, so rotate the default
+    // XZ grid a quarter turn). Sized/positioned to the model on first frame.
+    const grid = new GridHelper(
+      400,
+      40,
+      new Color(isDark ? "#64748b" : "#94a3b8"),
+      new Color(isDark ? "#334155" : "#cbd5e1"),
+    );
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+
     const group = new Group();
-    // Replicad works in a Z-up world; keep it and just orient the camera up.
     scene.add(group);
 
     const faceMaterial = new MeshStandardMaterial({
@@ -82,12 +117,22 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     const faceMesh = new Mesh(undefined, faceMaterial);
     group.add(faceMesh);
 
-    const isDark = document.documentElement.classList.contains("dark");
-    const lineMaterial = new LineBasicMaterial({
-      color: new Color(isDark ? "#cbd5e1" : "#1b2a4a"),
+    // Fat, screen-space-antialiased edge lines (LineSegments2) — the visible
+    // "line quality" upgrade over 1px LineBasicMaterial.
+    const lineMaterial = new LineMaterial({
+      color: new Color(isDark ? "#cbd5e1" : "#1b2a4a").getHex(),
+      linewidth: 1.6,
+      // Let MSAA feather the fat-line quad borders — without this the edges
+      // render hard/aliased no matter the pixel ratio.
+      alphaToCoverage: true,
     });
-    const lines = new LineSegments(undefined, lineMaterial);
+    lineMaterial.resolution.set(mount.clientWidth, mount.clientHeight);
+    const edgeSrc = new BufferGeometry();
+    const lineGeom = new LineSegmentsGeometry();
+    const lines = new LineSegments2(lineGeom, lineMaterial);
     group.add(lines);
+
+    const timer = new Timer();
 
     const animate = () => {
       const st = stateRef.current;
@@ -95,8 +140,17 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
         return;
       }
 
+      // Timer (unlike the deprecated Clock) needs an explicit tick each frame
+      // before the delta is valid.
+      st.timer.update();
+      const delta = st.timer.getDelta();
+      if (st.viewHelper.animating) {
+        st.viewHelper.update(delta);
+      }
       st.controls.update();
+      st.renderer.clear();
       st.renderer.render(st.scene, st.camera);
+      st.viewHelper.render(st.renderer);
       st.raf = requestAnimationFrame(animate);
     };
 
@@ -105,12 +159,24 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
       scene,
       camera,
       controls,
+      viewHelper,
+      timer,
+      grid,
       group,
       faceMesh,
+      edgeSrc,
+      lineGeom,
       lines,
+      lineMaterial,
       raf: 0,
     };
     stateRef.current.raf = requestAnimationFrame(animate);
+
+    // Click on the gizmo to snap the camera to an axis.
+    const onPointerUp = (event: PointerEvent) => {
+      viewHelper.handleClick(event);
+    };
+    renderer.domElement.addEventListener("pointerup", onPointerUp);
 
     const onResize = () => {
       if (!mount) {
@@ -120,6 +186,7 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
+      lineMaterial.resolution.set(mount.clientWidth, mount.clientHeight);
     };
 
     const ro = new ResizeObserver(onResize);
@@ -127,9 +194,11 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
 
     return () => {
       ro.disconnect();
+      renderer.domElement.removeEventListener("pointerup", onPointerUp);
       if (stateRef.current) {
         cancelAnimationFrame(stateRef.current.raf);
       }
+      viewHelper.dispose();
       controls.dispose();
       renderer.dispose();
       renderer.domElement.remove();
@@ -146,31 +215,49 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
 
     syncFaces(st.faceMesh.geometry, mesh.faces);
     if (mesh.edges) {
-      syncLines(st.lines.geometry, mesh.edges);
+      syncLines(st.edgeSrc, mesh.edges);
     } else {
-      syncLinesFromFaces(st.lines.geometry, st.faceMesh.geometry);
+      syncLinesFromFaces(st.edgeSrc, st.faceMesh.geometry);
+    }
+    // Feed the synced positions into the fat-line geometry.
+    const position = st.edgeSrc.getAttribute("position");
+    if (position) {
+      st.lineGeom.setPositions(position.array as Float32Array);
     }
 
+    const box = new Box3().setFromObject(st.faceMesh);
+    const center = box.getCenter(new Vector3());
+
+    // Sit the grid on the model's base, centered under it.
+    st.grid.position.set(center.x, center.y, box.min.z);
+
     if (!framedOnceRef.current) {
-      const box = new Box3().setFromObject(st.group);
-      const center = box.getCenter(new Vector3());
-      const size = box.getSize(new Vector3()).length();
-      st.controls.target.copy(center);
+      const sphere = box.getBoundingSphere(new Sphere());
+      const fov = (st.camera.fov * Math.PI) / 180;
+      // Distance that fits the bounding sphere, plus a small margin.
+      const distance = (sphere.radius / Math.sin(fov / 2)) * 1.1;
+      st.controls.target.copy(sphere.center);
       const dir = new Vector3(1, -1, 0.9).normalize();
-      st.camera.position.copy(center.clone().add(dir.multiplyScalar(size)));
+      st.camera.position.copy(sphere.center.clone().add(dir.multiplyScalar(distance)));
       st.camera.updateProjectionMatrix();
       framedOnceRef.current = true;
     }
   }, [mesh]);
 
   return (
-    <div className="relative h-full w-full">
-      <div ref={mountRef} className="h-full w-full" />
+    <Box pos="relative" h="100%" w="100%">
+      <Box ref={mountRef} h="100%" w="100%" />
       {loading && (
-        <div className="pointer-events-none absolute right-4 top-4 rounded-md bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow backdrop-blur">
+        <Badge
+          variant="default"
+          pos="absolute"
+          top={16}
+          right={16}
+          style={{ pointerEvents: "none" }}
+        >
           Rebuilding…
-        </div>
+        </Badge>
       )}
-    </div>
+    </Box>
   );
 }
