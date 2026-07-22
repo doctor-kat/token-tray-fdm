@@ -1,9 +1,9 @@
 "use client";
 
-import { Checkbox, Group } from "@mantine/core";
+import {Checkbox } from "@mantine/core";
 import type { TrayParams } from "@/app/lib/model";
 import type { Units } from "@/app/lib/units";
-import { Field, Section } from "@/app/TraySettingsBand";
+import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
 
 export function AdvancedPanel({
   params,
@@ -36,7 +36,7 @@ export function AdvancedPanel({
         />
       )}
 
-      <Group align="flex-end" gap="xs">
+      <FieldGroup>
         {isCover && (
           <Field
             icon="coverDepth"
@@ -63,7 +63,7 @@ export function AdvancedPanel({
             onChange({ lidTolerance: mm });
           }}
         />
-      </Group>
+      </FieldGroup>
     </Section>
   );
 }

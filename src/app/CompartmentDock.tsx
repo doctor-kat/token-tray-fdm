@@ -1,9 +1,9 @@
 "use client";
 
-import { Button, Group, Menu, Text } from "@mantine/core";
+import {Button, Menu, Text } from "@mantine/core";
 import { ChevronDown, Shapes, Trash2 } from "lucide-react";
 import type { Units } from "@/app/lib/units";
-import { Field, Section } from "@/app/TraySettingsBand";
+import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
 
 export const COMPARTMENT_PRESETS = [
   { name: "Standard meeple", w: 20, l: 20 },
@@ -73,7 +73,7 @@ export function CompartmentDock({
         </Menu>
       }
     >
-      <Group gap="xs">
+      <FieldGroup>
         {dims.map((d) => (
           <Field
             key={d.label}
@@ -86,7 +86,7 @@ export function CompartmentDock({
             onToggleAuto={d.onToggleAuto}
           />
         ))}
-      </Group>
+      </FieldGroup>
 
       <Button
         variant="light"

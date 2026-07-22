@@ -1,14 +1,54 @@
 "use client";
 
-import { Box, Group, NumberInput, Stack, Text, UnstyledButton } from "@mantine/core";
+import { Group, NumberInput, SimpleGrid, Stack, Text, UnstyledButton } from "@mantine/core";
 import { WandSparkles } from "lucide-react";
+import * as React from "react";
 import { ParamIcon, type ParamIconName } from "@/app/icons/ParamIcon";
 import type { TrayParams } from "@/app/lib/model";
+import { DIMENSION_MD, DIMENSION_SM, HEADER_SECTION, LABEL_XS } from "@/app/theme";
 import { dispVal, toMm, type Units } from "@/app/lib/units";
 
-// The parameter pills are outlined rather than filled: a warm hairline that
-// picks up the tan of the recolored dimension icons, over the card surface.
+// The parameter capsules are outlined rather than filled: a warm hairline over
+// the lightest paper surface, which brightens to white on hover.
 const FIELD_BORDER = "1px solid var(--mantine-color-sand-6)";
+
+/** How parameter fields present themselves.
+ *
+ * `row` is the narrow control rail: the label sits on the left and only the
+ * value is capsuled, so a 400px column stays legible. `tile` is the wide
+ * band under the previews, where fields sit three-up in a grid and each
+ * capsule has to carry its own label.
+ *
+ * It's context rather than a prop because five separate panels render fields
+ * and none of them care which shape is in use — only the shell does.
+ */
+export type FieldVariant = "row" | "tile";
+
+const FieldVariantContext = React.createContext<FieldVariant>("row");
+
+export function FieldVariantProvider({
+  variant,
+  children,
+}: {
+  variant: FieldVariant;
+  children: React.ReactNode;
+}) {
+  return <FieldVariantContext value={variant}>{children}</FieldVariantContext>;
+}
+
+/** Wraps a run of `Field`s: a stack in the rail, a three-up grid in the band.
+ * Panels use this instead of a bare `Stack` so the arrangement follows the
+ * variant without every panel restating it. */
+export function FieldGroup({ children }: { children: React.ReactNode }) {
+  const variant = React.useContext(FieldVariantContext);
+  return variant === "tile" ? (
+    <SimpleGrid cols={{ base: 2, md: 3 }} spacing="md" verticalSpacing="md">
+      {children}
+    </SimpleGrid>
+  ) : (
+    <Stack gap="md">{children}</Stack>
+  );
+}
 
 export type SettingsFlag = "height" | "wall" | "side" | "bottom";
 
@@ -50,10 +90,10 @@ const FIELDS: Array<{
   { flag: "bottom", key: "bottomFillet", label: "Bottom fillet", min: 0, max: 20, icon: "bottom" },
 ];
 
-/** Numeric field in display units, rendered as a compact filled pill: an
- * optional dimension glyph on a left rail, then a stacked label + editable
- * value (with a trailing unit) on the right. When `onToggleAuto` is given the
- * label doubles as the auto-mode toggle. */
+/** Numeric field in display units, rendered as the design's parameter row: the
+ * label (with an optional dimension glyph) on the left, and a pill capsule on
+ * the right holding the editable value and its unit. When `onToggleAuto` is
+ * given, a wand toggle rides inside the capsule as a trailing icon. */
 export function Field({
   value,
   units,
@@ -90,110 +130,122 @@ export function Field({
 
   // Size the input to its digits so the value + unit read as one tight token,
   // rather than a fixed box that leaves a gap before the unit. Space Mono at
-  // 20px advances ~12px per glyph.
-  const inputW = Math.max(1, String(shown).length) * 12 + 2;
+  // 14px advances ~8.4px per glyph.
+  const inputW = Math.ceil(Math.max(1, String(shown).length) * 8.4) + 2;
+  const variant = React.useContext(FieldVariantContext);
+  const tile = variant === "tile";
 
-  // The label, optionally wrapped in the auto-mode toggle (wand + accent).
-  const labelText = (
-    <Text
-      component="span"
-      fz={9}
-      fw={600}
-      lts=".06em"
-      tt="uppercase"
-      c={auto ? "rust.6" : "sand.8"}
-      style={{ whiteSpace: "nowrap" }}
-    >
-      {label}
-    </Text>
-  );
+  // The dimension sketches are the app's own artwork and carry real information
+  // (which quantity the field edits), so they keep a size where the measure
+  // arrows still read rather than shrinking to a generic 16px glyph.
+  const glyph = icon ? <ParamIcon name={icon} size={tile ? 24 : 32} /> : null;
 
-  return (
+  const capsule = (
     <Group
-      gap={0}
+      gap={6}
       wrap="nowrap"
-      align="stretch"
-      w="fit-content"
-      style={{ border: FIELD_BORDER, borderRadius: 14, overflow: "hidden" }}
+      px="md"
+      py={6}
+      bg="sand.0"
+      className="parameter-capsule"
+      style={{
+        border: FIELD_BORDER,
+        borderRadius: 9999,
+        // In the rail the capsule hugs its digits beside the label; as a tile
+        // it *is* the field, so it spans the grid cell.
+        flex: tile ? "1 1 auto" : "none",
+      }}
     >
-      {icon && (
-        <Box
-          w={58}
-          style={{ flex: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+      {tile && glyph}
+      {tile && (
+        <Text
+          component="span"
+          c="sand.8"
+          tt="uppercase"
+          style={{ ...LABEL_XS, whiteSpace: "nowrap", flex: 1 }}
         >
-          <ParamIcon name={icon} size={46} />
-        </Box>
+          {label}
+        </Text>
       )}
-      <Stack gap={2} justify="center" miw={0} py={10} pr={16} pl={icon ? 4 : 16}>
-        {onToggleAuto ? (
+        <NumberInput
+          aria-label={label}
+          variant="unstyled"
+          size="xs"
+          w={inputW}
+          value={shown}
+          disabled={auto}
+          step={step ?? 1}
+          min={min}
+          max={max}
+          clampBehavior="blur"
+          hideControls
+          styles={{
+            input: {
+              ...DIMENSION_MD,
+              minHeight: 0,
+              height: "auto",
+              width: "100%",
+              padding: 0,
+              textAlign: "right",
+              color: "var(--mantine-color-black)",
+              // Auto mode disables editing, but the value must stay just as
+              // legible as an active one — keep full ink contrast and only
+              // let the cursor signal that it's locked.
+              "&:disabled": {
+                color: "var(--mantine-color-black)",
+                opacity: 1,
+                cursor: "not-allowed",
+                background: "transparent",
+              },
+            },
+          }}
+          onChange={(v) => {
+            if (typeof v === "number") {
+              onChange(isLength ? toMm(v, units) : v);
+            }
+          }}
+        />
+        {unit && (
+          <Text component="span" c="sand.8" style={{ ...DIMENSION_SM, whiteSpace: "nowrap" }}>
+            {unit.toUpperCase()}
+          </Text>
+        )}
+        {onToggleAuto && (
           <UnstyledButton
             component="span"
             onClick={onToggleAuto}
             title={`Auto ${label.toLowerCase()}`}
+            style={{ display: "flex", alignItems: "center" }}
           >
-            <Group gap={4} wrap="nowrap">
-              <WandSparkles size={11} color={`var(--mantine-color-${auto ? "rust" : "sand"}-6)`} />
-              {labelText}
-            </Group>
+            <WandSparkles
+              size={14}
+              color={`var(--mantine-color-${auto ? "rust-6" : "stone-8"})`}
+              fill={auto ? "var(--mantine-color-rust-6)" : "none"}
+            />
           </UnstyledButton>
-        ) : (
-          labelText
         )}
-        <Group gap={4} wrap="nowrap" align="baseline">
-          <NumberInput
-            aria-label={label}
-            variant="unstyled"
-            size="xs"
-            w={inputW}
-            value={shown}
-            disabled={auto}
-            step={step ?? 1}
-            min={min}
-            max={max}
-            clampBehavior="blur"
-            hideControls
-            styles={{
-              input: {
-                minHeight: 0,
-                height: "auto",
-                width: "100%",
-                padding: 0,
-                lineHeight: 1.1,
-                textAlign: "left",
-                fontFamily: "var(--font-space-mono), monospace",
-                fontWeight: 700,
-                fontSize: 20,
-                color: "var(--mantine-color-black)",
-                // Auto mode disables editing, but the value must stay just as
-                // legible as an active one — keep full ink contrast and only
-                // let the cursor signal that it's locked.
-                "&:disabled": {
-                  color: "var(--mantine-color-black)",
-                  opacity: 1,
-                  cursor: "not-allowed",
-                  background: "transparent",
-                },
-              },
-            }}
-            onChange={(v) => {
-              if (typeof v === "number") {
-                onChange(isLength ? toMm(v, units) : v);
-              }
-            }}
-          />
-          {unit && (
-            <Text component="span" fz={10} fw={600} c="sand.8" style={{ whiteSpace: "nowrap" }}>
-              {unit}
-            </Text>
-          )}
-        </Group>
-      </Stack>
+    </Group>
+  );
+
+  if (tile) {
+    return capsule;
+  }
+
+  return (
+    <Group justify="space-between" wrap="nowrap" gap="sm">
+      <Group gap="sm" wrap="nowrap" miw={0}>
+        {glyph}
+        <Text component="span" fz="md" c="sand.8" style={{ whiteSpace: "nowrap" }}>
+          {label}
+        </Text>
+      </Group>
+      {capsule}
     </Group>
   );
 }
 
 /** Shared section shell for the control rail: every panel gets the same
- * padding, hairline top rule, and uppercase monospace heading. */
+ * padding and an uppercase monospace heading underlined by a hairline rule. */
 export function Section({
   title,
   action,
@@ -207,16 +259,16 @@ export function Section({
   children: React.ReactNode;
 } & Omit<React.ComponentProps<typeof Stack>, "title">) {
   return (
-    <Stack
-      gap="sm"
-      px="lg"
-      py="md"
-      style={{ borderTop: "1px solid var(--mantine-color-sand-5)" }}
-      {...rest}
-    >
+    <Stack gap="md" px="lg" pt="lg" {...rest}>
       {(title || action) && (
-        <Group justify="space-between" mih={26}>
-          <Text size="xs" ff="monospace" fw={700} c="sand.8" tt="uppercase" lts=".14em">
+        <Group
+          justify="space-between"
+          mih={22}
+          pb="xs"
+          style={{ borderBottom: FIELD_BORDER }}
+          wrap="nowrap"
+        >
+          <Text component="h3" c="sand.9" style={HEADER_SECTION} m={0}>
             {title}
           </Text>
           {action}
@@ -242,7 +294,7 @@ export function TraySettingsBand({
 }) {
   return (
     <Section title="Tray settings">
-      <Group gap="xs">
+      <FieldGroup>
         {FIELDS.map((f) => (
           <Field
             key={f.key}
@@ -266,7 +318,7 @@ export function TraySettingsBand({
             }
           />
         ))}
-      </Group>
+      </FieldGroup>
     </Section>
   );
 }

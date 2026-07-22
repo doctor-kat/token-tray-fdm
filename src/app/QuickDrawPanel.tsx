@@ -1,6 +1,6 @@
 "use client";
 
-import { Checkbox, Group, Select, Text } from "@mantine/core";
+import {Checkbox, Group, Select, Text } from "@mantine/core";
 import {
   CARD_PRESETS,
   type CardPresetId,
@@ -9,7 +9,7 @@ import {
   quickDrawDims,
 } from "@/app/lib/quick-draw";
 import type { Units } from "@/app/lib/units";
-import { Field, Section } from "@/app/TraySettingsBand";
+import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
 
 // Controls for the Quick Draw deck box. Mirrors the reference site's ordering
 // so the two are easy to compare.
@@ -51,7 +51,7 @@ export function QuickDrawPanel({
           allowDeselect={false}
         />
 
-        <Group gap="xs">
+        <FieldGroup>
           <Field
             label="Card height"
             value={params.cardHeight}
@@ -95,7 +95,7 @@ export function QuickDrawPanel({
               onChange({ deckCount: Math.max(1, Math.round(n)) });
             }}
           />
-        </Group>
+        </FieldGroup>
 
         <Group gap={6}>
           <Text fz="xs" c="dimmed">
@@ -134,7 +134,7 @@ export function QuickDrawPanel({
       </Section>
 
       <Section title="Fit">
-        <Group gap="xs">
+        <FieldGroup>
           <Field
             label="Wall thickness"
             value={params.wallThickness}
@@ -188,7 +188,7 @@ export function QuickDrawPanel({
               onChange({ lidTolerance: mm });
             }}
           />
-        </Group>
+        </FieldGroup>
       </Section>
     </>
   );

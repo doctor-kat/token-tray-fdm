@@ -1,9 +1,9 @@
 "use client";
 
-import { Badge, Checkbox, Group, Text } from "@mantine/core";
+import {Badge, Checkbox, Text } from "@mantine/core";
 import type { Units } from "@/app/lib/units";
 import { draftInset, type WyrmwoodParams } from "@/app/lib/wyrmwood";
-import { Field, Section } from "@/app/TraySettingsBand";
+import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
 
 export function WyrmwoodPanel({
   params,
@@ -21,7 +21,7 @@ export function WyrmwoodPanel({
   return (
     <>
       <Section title="Accessory">
-        <Group gap="xs">
+        <FieldGroup>
           <Field
             label="Base width"
             value={params.width}
@@ -105,7 +105,7 @@ export function WyrmwoodPanel({
               onChange({ bottomFillet: mm });
             }}
           />
-        </Group>
+        </FieldGroup>
 
         <Text fz="xs" c="dimmed">
           top face {topW.toFixed(1)} × {topL.toFixed(1)} — walls lean in {inset.toFixed(1)} mm per
@@ -129,7 +129,7 @@ export function WyrmwoodPanel({
           }}
         />
         {params.magnetsEnabled && (
-          <Group gap="xs">
+          <FieldGroup>
             <Field
               label="Count"
               value={params.magnetCount}
@@ -173,7 +173,7 @@ export function WyrmwoodPanel({
                 onChange({ magnetInset: mm });
               }}
             />
-          </Group>
+          </FieldGroup>
         )}
       </Section>
 
@@ -193,7 +193,7 @@ export function WyrmwoodPanel({
           }}
         />
         {params.cardSlotEnabled && (
-          <Group gap="xs">
+          <FieldGroup>
             <Field
               label="Slot width"
               value={params.cardSlotWidth}
@@ -214,7 +214,7 @@ export function WyrmwoodPanel({
                 onChange({ cardSlotLength: mm });
               }}
             />
-          </Group>
+          </FieldGroup>
         )}
       </Section>
     </>
