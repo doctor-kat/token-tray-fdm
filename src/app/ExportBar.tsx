@@ -1,15 +1,15 @@
 "use client";
 
-import { ActionIcon, Button, Group, Menu, Stack, Text } from "@mantine/core";
-import { Box, Download, MoreHorizontal, Package, Share2 } from "lucide-react";
+import { Button, Group, Menu, Text } from "@mantine/core";
+import { Box, ChevronUp, Download, Package, Share2 } from "lucide-react";
 
 const FORMATS = [
   { value: "stl", icon: Box, hint: "FDM printing" },
   { value: "step", icon: Package, hint: "CAD interchange" },
 ] as const;
 
-// The rail's pinned closing block: the primary export action, with the
-// secondary share/format affordances demoted to a row beneath it.
+// The rail's pinned closing block, all on one line: a split button pairing the
+// export action with the format it will write, then Share.
 export function ExportBar({
   fmt,
   exporting,
@@ -22,48 +22,41 @@ export function ExportBar({
   onExport: () => void;
 }) {
   return (
-    <Stack
+    <Group
       gap="md"
       p="lg"
       mt="auto"
       bg="sand.3"
+      wrap="nowrap"
       style={{ borderTop: "1px solid var(--mantine-color-sand-6)", flex: "none" }}
     >
-      <Button
-        size="md"
-        fullWidth
-        loading={exporting}
-        onClick={onExport}
-        leftSection={<Download size={36} />}
-        tt="uppercase"
-        fw={600}
-        styles={{ label: { letterSpacing: ".06em" } }}
-      >
-        Export {fmt.toUpperCase()}
-      </Button>
-
-      <Group gap="md" wrap="nowrap">
+      {/* The format picker rides on the export button rather than standing
+          apart, since it only ever qualifies that one action. */}
+      <Button.Group style={{ flex: 1 }}>
         <Button
-          variant="default"
           size="md"
           flex={1}
-          leftSection={<Share2 size={32} />}
-          title="Share config link"
+          loading={exporting}
+          onClick={onExport}
+          leftSection={<Download size={18} />}
+          tt="uppercase"
+          fw={600}
+          styles={{ label: { letterSpacing: ".06em" } }}
         >
-          Share
+          Export {fmt.toUpperCase()}
         </Button>
         <Menu position="top-end" withinPortal>
           <Menu.Target>
-            <ActionIcon variant="default" size={42} w={56} title="Choose export format">
-              <MoreHorizontal size={36} />
-            </ActionIcon>
+            <Button size="md" px="sm" title="Choose export format" aria-label="Choose export format">
+              <ChevronUp size={18} />
+            </Button>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Label>Export format</Menu.Label>
             {FORMATS.map((f) => (
               <Menu.Item
                 key={f.value}
-                leftSection={<f.icon size={32} />}
+                leftSection={<f.icon size={16} />}
                 onClick={() => {
                   onPickFmt(f.value);
                 }}
@@ -76,7 +69,17 @@ export function ExportBar({
             ))}
           </Menu.Dropdown>
         </Menu>
-      </Group>
-    </Stack>
+      </Button.Group>
+
+      <Button
+        variant="default"
+        size="md"
+        flex={1}
+        leftSection={<Share2 size={16} />}
+        title="Share config link"
+      >
+        Share
+      </Button>
+    </Group>
   );
 }
