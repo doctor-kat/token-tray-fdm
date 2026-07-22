@@ -1,20 +1,44 @@
 @import "@mantine/core/styles.css";
 
 body {
-  background: var(--mantine-color-sand-0);
+  background: var(--mantine-color-sand-1);
   color: var(--mantine-color-black);
   -webkit-font-smoothing: antialiased;
+}
+
+/* The design's hairline scrollbar, so the rail and the plan panel don't
+   interrupt the paper surfaces with a platform-default gutter. */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--mantine-color-sand-3);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mantine-color-sand-6);
+  border-radius: 10px;
+}
+
+/* Graph-paper backdrop behind the 2D plan view. Owns its surface color so the
+   image isn't reset by a `background` shorthand from Mantine's `bg` prop. */
+.grid-paper {
+  background-color: var(--mantine-color-sand-1);
+  background-image:
+    linear-gradient(var(--tt-grid-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--tt-grid-rule) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* PlanView draws its own bins/handles rather than using Mantine controls, so
    its hover states stay here. */
 .plan-bin:hover {
-  background: #f2e7dd !important;
-  border-color: #d8a68c !important;
+  background: var(--mantine-color-sand-4) !important;
+  border-color: var(--mantine-color-rust-6) !important;
 }
 .plan-split-btn:hover {
-  background: #3a3630 !important;
+  background: var(--tt-inverse-surface) !important;
 }
 .plan-add-btn:hover {
-  background: #a54e2d !important;
+  background: var(--mantine-color-rust-7) !important;
 }

@@ -1,20 +1,20 @@
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import type { Metadata } from "next";
-import { Instrument_Sans, Space_Mono } from "next/font/google";
-import { theme } from "./theme";
+import { Fira_Sans, Space_Mono } from "next/font/google";
+import { cssVariablesResolver, theme } from "./theme";
 import "./globals.css";
 
-// Instrument Sans carries the prose UI: body, headings, and the uppercase
-// control labels + units (which lean on letter-spacing, not a separate face).
-const instrument = Instrument_Sans({
+// Fira Sans carries the prose UI: body, headings, and the small sans labels.
+// It is the design's `headlineFont` and `bodyFont`.
+const fira = Fira_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
-  variable: "--font-instrument",
+  variable: "--font-fira",
 });
 
-// Space Mono is reserved for the editable numeric *values* in the parameter
-// fields — the digits you dial in read as a monospace instrument readout,
-// distinct from the sans labels around them.
+// Space Mono is the design's `labelFont`: section rules, the nav, and every
+// dimension readout. The digits you dial in read as a monospace instrument
+// readout, distinct from the sans labels around them.
 const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
@@ -32,13 +32,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       {...mantineHtmlProps}
-      className={`${instrument.variable} ${spaceMono.variable}`}
+      className={`${fira.variable} ${spaceMono.variable}`}
     >
       <head>
         <ColorSchemeScript defaultColorScheme="light" />
       </head>
       <body>
-        <MantineProvider theme={theme} defaultColorScheme="light">
+        <MantineProvider
+          theme={theme}
+          cssVariablesResolver={cssVariablesResolver}
+          defaultColorScheme="light"
+        >
           {children}
         </MantineProvider>
       </body>
