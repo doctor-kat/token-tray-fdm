@@ -1,12 +1,18 @@
 "use client";
 
 import * as React from "react";
+import type { DesignId } from "@/app/lib/designs";
 import type { MeshData } from "@/app/lib/mesh";
-import type { SplitNode, TrayParams } from "@/app/lib/model";
+import type { SplitNode } from "@/app/lib/model";
 
-// Debounced worker client: rebuilds the mesh when params/structure change and
-// exposes an `exportModel` for downloads.
-export function useTrayWorker(parameters: TrayParams, structure: SplitNode) {
+// Debounced worker client: rebuilds the mesh when the design, params, or
+// structure change and exposes an `exportModel` for downloads.
+export function useTrayWorker(
+  design: DesignId,
+  // biome-ignore lint/suspicious/noExplicitAny: params type varies per design
+  parameters: any,
+  structure: SplitNode | null,
+) {
   const workerRef = React.useRef<Worker | null>(null);
   const idRef = React.useRef(0);
   const [mesh, setMesh] = React.useState<MeshData | null>(null);
@@ -56,6 +62,7 @@ export function useTrayWorker(parameters: TrayParams, structure: SplitNode) {
       worker.postMessage({
         type: "build",
         id,
+        design,
         params: parameters,
         structure,
       });
@@ -63,7 +70,7 @@ export function useTrayWorker(parameters: TrayParams, structure: SplitNode) {
     return () => {
       clearTimeout(handle);
     };
-  }, [parameters, structure]);
+  }, [design, parameters, structure]);
 
   const exportModel = React.useCallback(
     async (format: "stl" | "step") => {
@@ -79,12 +86,13 @@ export function useTrayWorker(parameters: TrayParams, structure: SplitNode) {
           type: "export",
           id,
           format,
+          design,
           params: parameters,
           structure,
         });
       });
     },
-    [parameters, structure],
+    [design, parameters, structure],
   );
 
   return {

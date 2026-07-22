@@ -6,8 +6,9 @@
 
 import * as replicad from "replicad";
 import opencascade from "replicad-opencascadejs/src/replicad_single.js";
+import { type DesignId, getDesign } from "@/app/lib/designs";
 import { combineMeshes } from "@/app/lib/mesh";
-import { buildTray, type SplitNode, type TrayParams } from "@/app/lib/model";
+import type { SplitNode } from "@/app/lib/model";
 
 let ocReady: Promise<void> | null = null;
 
@@ -32,19 +33,24 @@ async function initOC() {
   return ocReady;
 }
 
-type BuildMessage = {
-  type: "build";
-  id: number;
-  params: TrayParams;
-  structure: SplitNode;
+// Params cross `postMessage` as plain data; the design id is what tells the
+// worker which builder to hand them to.
+type DesignPayload = {
+  design: DesignId;
+  // biome-ignore lint/suspicious/noExplicitAny: params are opaque transport here
+  params: any;
+  structure: SplitNode | null;
 };
 
-type ExportMessage = {
+type BuildMessage = DesignPayload & {
+  type: "build";
+  id: number;
+};
+
+type ExportMessage = DesignPayload & {
   type: "export";
   id: number;
   format: "stl" | "step";
-  params: TrayParams;
-  structure: SplitNode;
 };
 
 type InMessage = BuildMessage | ExportMessage;
@@ -53,7 +59,7 @@ globalThis.onmessage = async (e: MessageEvent<InMessage>) => {
   const message = e.data;
   try {
     await initOC();
-    const parts = buildTray(replicad, message.params, message.structure);
+    const parts = getDesign(message.design).build(replicad, message.params, message.structure);
 
     if (message.type === "build") {
       // Mesh each part on its own so its normals stay correct, then merge the

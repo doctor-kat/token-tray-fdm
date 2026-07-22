@@ -41,6 +41,7 @@ export function Field({
   onChange,
   onToggleAuto,
   label,
+  rawUnit,
 }: {
   value: number;
   units: Units;
@@ -51,7 +52,16 @@ export function Field({
   onChange: (mm: number) => void;
   onToggleAuto?: () => void;
   label: string;
+  /** Set for quantities that aren't lengths (angles, counts). Suppresses the
+   * mm/inch conversion and shows this suffix instead — "" for a bare number. */
+  rawUnit?: string;
 }) {
+  // Lengths are stored in mm and displayed in the user's units; everything
+  // else passes through untouched.
+  const isLength = rawUnit === undefined;
+  const shown = isLength ? dispVal(value, units) : value;
+  const suffix = isLength ? units : rawUnit;
+
   return (
     <NumberInput
       // Label sits *below* the box and doubles as the auto-mode toggle.
@@ -82,7 +92,7 @@ export function Field({
           )}
         </Group>
       }
-      value={dispVal(value, units)}
+      value={shown}
       disabled={auto}
       step={step ?? 1}
       min={min}
@@ -97,16 +107,18 @@ export function Field({
         },
       }}
       rightSection={
-        <Text fz={9} fw={600} c="sand.8">
-          {units}
-        </Text>
+        suffix ? (
+          <Text fz={9} fw={600} c="sand.8">
+            {suffix}
+          </Text>
+        ) : null
       }
-      rightSectionWidth={26}
+      rightSectionWidth={suffix ? 26 : 0}
       rightSectionPointerEvents="none"
       hideControls
       onChange={(v) => {
         if (typeof v === "number") {
-          onChange(toMm(v, units));
+          onChange(isLength ? toMm(v, units) : v);
         }
       }}
     />

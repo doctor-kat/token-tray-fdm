@@ -15,7 +15,9 @@ import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock } from "@/app/CompartmentDock";
+import { DesignSwitcher } from "@/app/DesignSwitcher";
 import { ExportBar } from "@/app/ExportBar";
+import type { DesignId } from "@/app/lib/designs";
 import {
   defaultParams,
   defaultStructure,
@@ -24,6 +26,7 @@ import {
   type SplitNode,
   type TrayParams,
 } from "@/app/lib/model";
+import { defaultQuickDrawParams, type QuickDrawParams } from "@/app/lib/quick-draw";
 import {
   addNeighbor,
   findNode,
@@ -34,8 +37,11 @@ import {
   splitCell,
 } from "@/app/lib/tree-ops";
 import { dispVal, type Units } from "@/app/lib/units";
+import { defaultWyrmwoodParams, topRect, type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { PlanView } from "@/app/PlanView";
+import { QuickDrawPanel } from "@/app/QuickDrawPanel";
 import { TraySettingsBand } from "@/app/TraySettingsBand";
+import { WyrmwoodPanel } from "@/app/WyrmwoodPanel";
 
 const TrayViewer = dynamic(async () => import("@/app/TrayViewer").then((m) => m.TrayViewer), {
   ssr: false,
@@ -75,13 +81,27 @@ function leafCount(node: SplitNode): number {
 
 type Side = "left" | "right" | "top" | "bottom";
 
+// The two designs that lay out compartments. Quick Draw derives its pockets
+// from the card size, so it has no tree and never appears here.
+type StructuralDesign = "token-tray" | "wyrmwood";
+
+function structuralDesign(design: DesignId): StructuralDesign {
+  return design === "wyrmwood" ? "wyrmwood" : "token-tray";
+}
+
 // The tray's coupled domain state. `params`, `structure`, and `selectedId`
 // move together on every structural edit, so they live in one reducer rather
 // than three independent useState slices.
+//
+// Each structural design keeps its OWN tree and selection: the tray and the
+// accessory have different footprints, so sharing one tree made an edit to one
+// silently reshape the other. `design` lives here too, since every structural
+// action needs to know which tree it is editing.
 type TrayState = {
   params: TrayParams;
-  structure: SplitNode;
-  selectedId: string | null;
+  design: DesignId;
+  structures: Record<StructuralDesign, SplitNode>;
+  selectedIds: Record<StructuralDesign, string | null>;
 };
 
 // Axis auto-grow reads the current tray-axis locks; since the reducer is pure
@@ -89,6 +109,7 @@ type TrayState = {
 type Locks = { w: boolean; l: boolean };
 
 type TrayAction =
+  | { type: "setDesign"; id: DesignId }
   | { type: "select"; id: string }
   | { type: "deselect" }
   | { type: "patchParams"; patch: Partial<TrayParams> }
@@ -111,59 +132,69 @@ function growAxis(params: TrayParams, axis: "w" | "l", delta: number, locks: Loc
 }
 
 function trayReducer(state: TrayState, action: TrayAction): TrayState {
+  // Every structural action edits the active design's tree in place.
+  const key = structuralDesign(state.design);
+  const structure = state.structures[key];
+  const selectedId = state.selectedIds[key];
+
+  const withTree = (tree: SplitNode, id: string | null, params = state.params): TrayState => ({
+    ...state,
+    params,
+    structures: { ...state.structures, [key]: tree },
+    selectedIds: { ...state.selectedIds, [key]: id },
+  });
+
+  // Axis auto-grow only makes sense for the token tray: the accessory's
+  // footprint is driven by its own params, which this reducer doesn't own.
+  const grow = (axis: "w" | "l", delta: number, locks: Locks) =>
+    key === "token-tray" ? growAxis(state.params, axis, delta, locks) : state.params;
+
   switch (action.type) {
+    case "setDesign":
+      return { ...state, design: action.id };
     case "select":
-      return { ...state, selectedId: state.selectedId === action.id ? null : action.id };
+      return withTree(structure, selectedId === action.id ? null : action.id);
     case "deselect":
-      return { ...state, selectedId: null };
+      return withTree(structure, null);
     case "patchParams":
       return { ...state, params: { ...state.params, ...action.patch } };
     case "editStructure":
-      return { ...state, structure: action.edit(state.structure) };
+      return withTree(action.edit(structure), selectedId);
     case "split": {
-      if (!state.selectedId) {
+      if (!selectedId) {
         return state;
       }
 
-      const structure = splitCell(state.structure, state.selectedId, action.dir);
-      const node = findNode(structure, state.selectedId);
-      return {
-        params: growAxis(
-          state.params,
-          action.dir === "vertical" ? "w" : "l",
-          AXIS_STEP,
-          action.locks,
-        ),
-        structure,
-        selectedId: node && node.children.length > 0 ? node.children[0].id : state.selectedId,
-      };
+      const next = splitCell(structure, selectedId, action.dir);
+      const node = findNode(next, selectedId);
+      return withTree(
+        next,
+        node && node.children.length > 0 ? node.children[0].id : selectedId,
+        grow(action.dir === "vertical" ? "w" : "l", AXIS_STEP, action.locks),
+      );
     }
     case "addNeighbor": {
-      if (!state.selectedId) {
+      if (!selectedId) {
         return state;
       }
 
-      const { tree, newId } = addNeighbor(state.structure, state.selectedId, action.side);
+      const { tree, newId } = addNeighbor(structure, selectedId, action.side);
       const axis = action.side === "left" || action.side === "right" ? "w" : "l";
-      return {
-        params: growAxis(state.params, axis, AXIS_STEP, action.locks),
-        structure: tree,
-        selectedId: newId,
-      };
+      return withTree(tree, newId, grow(axis, AXIS_STEP, action.locks));
     }
     case "deleteSelected": {
-      if (!state.selectedId) {
+      if (!selectedId) {
         return state;
       }
 
-      const parent = findParent(state.structure, state.selectedId);
+      const parent = findParent(structure, selectedId);
       const axis =
         parent?.splitType === "vertical" ? "w" : parent?.splitType === "horizontal" ? "l" : null;
-      return {
-        params: axis ? growAxis(state.params, axis, -AXIS_STEP, action.locks) : state.params,
-        structure: removeCell(state.structure, state.selectedId),
-        selectedId: null,
-      };
+      return withTree(
+        removeCell(structure, selectedId),
+        null,
+        axis ? grow(axis, -AXIS_STEP, action.locks) : state.params,
+      );
     }
     default:
       return state;
@@ -184,17 +215,29 @@ export function TrayApp() {
   const layout: Layout = desktop ? "desktop" : tablet ? "tablet" : "mobile";
   const wide = layout !== "mobile";
 
-  const [{ params: parameters, structure, selectedId }, dispatch] = React.useReducer(trayReducer, {
+  const [state, dispatch] = React.useReducer(trayReducer, {
     params: defaultParams,
-    structure: defaultStructure(),
-    selectedId: null,
+    design: "token-tray" as DesignId,
+    structures: { "token-tray": defaultStructure(), wyrmwood: defaultStructure() },
+    selectedIds: { "token-tray": null, wyrmwood: null },
   });
+  const { params: parameters, design } = state;
+  // The active design's tree and selection.
+  const structure = state.structures[structuralDesign(design)];
+  const selectedId = state.selectedIds[structuralDesign(design)];
 
   const [flags, toggleFlag] = React.useReducer(
     (s: Flags, key: keyof Flags) => ({ ...s, [key]: !s[key] }),
     defaultFlags,
   );
   const locks: Locks = { w: flags.lockW, l: flags.lockL };
+
+  // The other two designs carry their own parameter objects. They're kept in
+  // plain state beside the tray reducer rather than folded into it: only the
+  // token tray has the coupled params/structure/selection edits the reducer
+  // exists to coordinate.
+  const [quickDraw, setQuickDraw] = React.useState<QuickDrawParams>(defaultQuickDrawParams);
+  const [wyrmwood, setWyrmwood] = React.useState<WyrmwoodParams>(defaultWyrmwoodParams);
 
   const [fmt, setFmt] = React.useState<"stl" | "step">("stl");
   const [exporting, setExporting] = React.useState(false);
@@ -230,7 +273,17 @@ export function TrayApp() {
     return { ...parameters, depth: Math.max(6, maxDepth + parameters.outerWallThickness) };
   }, [parameters, structure, innerRect, flags.height]);
 
-  const { mesh, loading, error, exportModel } = useTrayWorker(effectiveParameters, structure);
+  // Quick Draw derives its pockets from the card size, so it has no tree; the
+  // other two lay out compartments and share the split tree.
+  const workerParams =
+    design === "token-tray" ? effectiveParameters : design === "quick-draw" ? quickDraw : wyrmwood;
+  const workerStructure = design === "quick-draw" ? null : structure;
+
+  const { mesh, loading, error, exportModel } = useTrayWorker(
+    design,
+    workerParams,
+    workerStructure,
+  );
 
   const cells = React.useMemo(
     () => layoutCells(structure, innerRect, parameters.wallThickness),
@@ -253,8 +306,7 @@ export function TrayApp() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const name = parameters.modelName.trim() || "token-tray";
-      a.download = `${name}.${fmt}`;
+      a.download = `${(workerParams.modelName as string).trim() || design}.${fmt}`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -264,11 +316,36 @@ export function TrayApp() {
 
   const effectiveDepth = parameters.depth - parameters.outerWallThickness;
 
+  // Quick Draw has no editable compartment tree, so it shows the 3D view alone.
+  const hasPlan = design !== "quick-draw";
+
+  // The plan view speaks TrayParams. For the accessory that means its *top*
+  // face, since that's the opening the compartments are laid out on.
+  const planParams: TrayParams = React.useMemo(() => {
+    if (design !== "wyrmwood") {
+      return parameters;
+    }
+
+    const top = topRect(wyrmwood);
+    return {
+      ...parameters,
+      width: top.w,
+      height: top.h,
+      depth: wyrmwood.thickness,
+      outerWallThickness: wyrmwood.wallThickness,
+      wallThickness: wyrmwood.wallThickness,
+    };
+  }, [design, parameters, wyrmwood]);
+
   const titleBlock = (
     <Group gap="xs">
       <Title order={1} size="h4">
-        {count} bins · {dispVal(parameters.width, units)}×{dispVal(parameters.height, units)}×
-        {dispVal(effectiveParameters.depth, units)}
+        {design === "quick-draw"
+          ? `${quickDraw.deckCount} deck${quickDraw.deckCount === 1 ? "" : "s"}`
+          : `${count} bins · ${dispVal(planParams.width, units)}×${dispVal(planParams.height, units)}×${dispVal(
+              design === "wyrmwood" ? wyrmwood.thickness : effectiveParameters.depth,
+              units,
+            )}`}
       </Title>
       <Badge
         variant="default"
@@ -299,7 +376,7 @@ export function TrayApp() {
 
   const planEl = (
     <PlanView
-      params={parameters}
+      params={planParams}
       structure={structure}
       units={units}
       selectedId={selectedId}
@@ -451,11 +528,46 @@ export function TrayApp() {
     <ExportBar fmt={fmt} exporting={exporting} onPickFmt={setFmt} onExport={handleExport} />
   );
 
+  const designSwitcher = (
+    <DesignSwitcher
+      design={design}
+      onChange={(id) => {
+        dispatch({ type: "setDesign", id });
+      }}
+    />
+  );
+
   const controls = (
     <>
-      {settingsBand}
-      {advancedPanel}
-      {compartmentDock}
+      {designSwitcher}
+      {design === "token-tray" && (
+        <>
+          {settingsBand}
+          {advancedPanel}
+          {compartmentDock}
+        </>
+      )}
+      {design === "quick-draw" && (
+        <QuickDrawPanel
+          params={quickDraw}
+          units={units}
+          onChange={(patch) => {
+            setQuickDraw((p) => ({ ...p, ...patch }));
+          }}
+        />
+      )}
+      {design === "wyrmwood" && (
+        <>
+          <WyrmwoodPanel
+            params={wyrmwood}
+            units={units}
+            onChange={(patch) => {
+              setWyrmwood((p) => ({ ...p, ...patch }));
+            }}
+          />
+          {compartmentDock}
+        </>
+      )}
       {exportBar}
     </>
   );
@@ -469,8 +581,8 @@ export function TrayApp() {
           <Box px="lg" pt="md">
             {titleBlock}
           </Box>
-          <SimpleGrid cols={2} spacing="md" flex={1} mih={0} px="lg" pb="md">
-            {planEl}
+          <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" flex={1} mih={0} px="lg" pb="md">
+            {hasPlan && planEl}
             {viewerEl}
           </SimpleGrid>
         </Stack>
@@ -493,8 +605,8 @@ export function TrayApp() {
         <Box px="lg" pt="md">
           {titleBlock}
         </Box>
-        <SimpleGrid cols={2} spacing="md" h={340} px="lg" pb="sm">
-          {planEl}
+        <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" h={340} px="lg" pb="sm">
+          {hasPlan && planEl}
           {viewerEl}
         </SimpleGrid>
         {controls}
@@ -507,9 +619,9 @@ export function TrayApp() {
     <Stack gap={0} mih="100dvh">
       <Group justify="space-between" px="lg" pt="md" pb={6}>
         {titleBlock}
-        {viewToggle}
+        {hasPlan && viewToggle}
       </Group>
-      {view === "plan" ? planEl : viewerEl}
+      {hasPlan && view === "plan" ? planEl : viewerEl}
       {controls}
     </Stack>
   );
