@@ -16,6 +16,8 @@ export function useTrayWorker(
   const workerRef = React.useRef<Worker | null>(null);
   const idRef = React.useRef(0);
   const [mesh, setMesh] = React.useState<MeshData | null>(null);
+  // Solid volume in mm3, reported by the kernel alongside each build.
+  const [volume, setVolume] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const exportResolvers = React.useRef<Map<number, (blob: Blob) => void>>(new Map());
@@ -29,6 +31,7 @@ export function useTrayWorker(
         // Only accept the most recent build.
         if (data.id === idRef.current) {
           setMesh({ faces: data.faces, edges: data.edges });
+          setVolume(typeof data.volume === "number" ? data.volume : null);
           setLoading(false);
           setError(null);
         }
@@ -97,6 +100,7 @@ export function useTrayWorker(
 
   return {
     mesh,
+    volume,
     loading,
     error,
     exportModel,

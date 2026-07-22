@@ -32,3 +32,12 @@ export const bambuMattePLA: Filament[] = [
 ];
 
 export const defaultFilament = bambuMattePLA[18]; // Marine Blue
+
+/** Typical PLA density. Manufacturers quote 1.17–1.25 g/cm³; this is the middle
+ * of that band and is only ever used for the on-screen material estimate. */
+export const PLA_DENSITY_G_CM3 = 1.24;
+
+/** Nominal volumetric throughput for a 0.4 mm nozzle at everyday tray settings.
+ * A real figure comes from a slicer — this is a rule of thumb that gets the
+ * print time into the right order of magnitude, nothing more. */
+export const NOMINAL_FLOW_MM3_PER_S = 8;
