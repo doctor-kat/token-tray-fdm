@@ -9,11 +9,7 @@
 // sends a `DesignId` and the worker looks the builder up here.
 
 import { buildTray, defaultParams, defaultStructure, type SplitNode, type TrayPart } from "./model";
-import {
-  buildQuickDraw,
-  defaultQuickDrawParams,
-  type QuickDrawParams,
-} from "./quick-draw";
+import { buildQuickDraw, defaultQuickDrawParams, type QuickDrawParams } from "./quick-draw";
 import type { Replicad } from "./replicad-types";
 import { buildWyrmwood, defaultWyrmwoodParams, type WyrmwoodParams } from "./wyrmwood";
 

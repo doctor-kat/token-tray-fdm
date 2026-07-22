@@ -73,7 +73,7 @@ export function CompartmentDock({
         </Menu>
       }
     >
-      <Group grow gap="xs">
+      <Group gap="xs">
         {dims.map((d) => (
           <Field
             key={d.label}

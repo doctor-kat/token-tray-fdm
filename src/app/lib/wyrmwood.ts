@@ -102,7 +102,11 @@ function draftedSlab(
   },
 ): Solid {
   const lower: Solid = r
-    .drawRoundedRectangle(bottomW, bottomL, Math.max(0, Math.min(bottomR, bottomW / 2, bottomL / 2)))
+    .drawRoundedRectangle(
+      bottomW,
+      bottomL,
+      Math.max(0, Math.min(bottomR, bottomW / 2, bottomL / 2)),
+    )
     .sketchOnPlane("XY", z0);
   const upper: Solid = r
     .drawRoundedRectangle(topW, topL, Math.max(0, Math.min(topR, topW / 2, topL / 2)))

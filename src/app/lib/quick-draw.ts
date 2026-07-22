@@ -174,11 +174,7 @@ function buildBody(r: Replicad, p: QuickDrawParams, d: QuickDrawDims): Solid {
     // Start above the floor so the scoop never breaches the base.
     const z = wall + Math.min(2, p.deckHeight / 4);
     for (const sign of [-1, 1]) {
-      const scoop = fingerScoop(r, radius, d.trayH - z + 1).translate([
-        (sign * d.trayW) / 2,
-        0,
-        z,
-      ]);
+      const scoop = fingerScoop(r, radius, d.trayH - z + 1).translate([(sign * d.trayW) / 2, 0, z]);
       body = body.cut(scoop);
     }
   }
@@ -246,8 +242,7 @@ export function buildQuickDraw(r: Replicad, p: QuickDrawParams): TrayPart[] {
   const parts: TrayPart[] = [{ name: `${baseName} - tray`, shape: buildBody(r, p, d) }];
 
   if (p.lidType !== "none") {
-    const lid =
-      p.lidType === "lid" ? buildQuickDrawLid(r, p, d) : buildQuickDrawCover(r, p, d);
+    const lid = p.lidType === "lid" ? buildQuickDrawLid(r, p, d) : buildQuickDrawCover(r, p, d);
     // Sit the lid on the bed beside the tray, clear of it.
     parts.push({
       name: `${baseName} - ${p.lidType}`,

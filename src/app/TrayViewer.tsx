@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Box } from "@mantine/core";
+import { Badge, Box, ColorSwatch, Group as MGroup, Paper, Text, Tooltip } from "@mantine/core";
 import * as React from "react";
 import { syncFaces, syncLines, syncLinesFromFaces } from "replicad-threejs-helper";
 import {
@@ -26,12 +26,14 @@ import { ViewHelper } from "three/examples/jsm/helpers/ViewHelper.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { bambuMattePLA, defaultFilament } from "@/app/lib/filaments";
 import type { MeshData } from "@/app/lib/mesh";
 
 export type { MeshData };
 
 export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: boolean }) {
   const mountRef = React.useRef<HTMLDivElement>(null);
+  const [color, setColor] = React.useState(defaultFilament.hex);
   const stateRef = React.useRef<
     | {
         renderer: WebGLRenderer;
@@ -109,11 +111,13 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     scene.add(group);
 
     const faceMaterial = new MeshStandardMaterial({
-      color: new Color("#5b8def"),
-      metalness: 0.1,
-      roughness: 0.6,
+      color: new Color(defaultFilament.hex),
+      // Matte PLA reads as a near-diffuse surface — no metal, high roughness.
+      metalness: 0,
+      roughness: 0.85,
       flatShading: false,
     });
+
     const faceMesh = new Mesh(undefined, faceMaterial);
     group.add(faceMesh);
 
@@ -244,9 +248,50 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     }
   }, [mesh]);
 
+  // Recolor the model material when a filament is picked.
+  React.useEffect(() => {
+    const material = stateRef.current?.faceMesh.material;
+    if (material instanceof MeshStandardMaterial) {
+      material.color.set(color);
+    }
+  }, [color]);
+
   return (
     <Box pos="relative" h="100%" w="100%">
       <Box ref={mountRef} h="100%" w="100%" />
+      <Paper
+        pos="absolute"
+        top={16}
+        left={16}
+        p="xs"
+        withBorder
+        shadow="sm"
+        bg="sand.0"
+        style={{ width: 200 }}
+      >
+        <Text size="xs" c="dimmed" mb={4}>
+          Filament
+        </Text>
+        <MGroup gap={6}>
+          {bambuMattePLA.map((f) => (
+            <Tooltip key={f.hex} label={f.name} withArrow openDelay={200}>
+              <ColorSwatch
+                component="button"
+                color={f.hex}
+                size={18}
+                onClick={() => {
+                  setColor(f.hex);
+                }}
+                style={{
+                  cursor: "pointer",
+                  outline: color === f.hex ? "2px solid var(--mantine-color-rust-6)" : undefined,
+                  outlineOffset: 2,
+                }}
+              />
+            </Tooltip>
+          ))}
+        </MGroup>
+      </Paper>
       {loading && (
         <Badge
           variant="default"

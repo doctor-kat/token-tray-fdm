@@ -1,19 +1,20 @@
 import { ColorSchemeScript, MantineProvider, mantineHtmlProps } from "@mantine/core";
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Instrument_Sans, Space_Mono } from "next/font/google";
+import { Instrument_Sans, Space_Mono } from "next/font/google";
 import { theme } from "./theme";
 import "./globals.css";
 
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-bricolage",
-});
+// Instrument Sans carries the prose UI: body, headings, and the uppercase
+// control labels + units (which lean on letter-spacing, not a separate face).
 const instrument = Instrument_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-instrument",
 });
+
+// Space Mono is reserved for the editable numeric *values* in the parameter
+// fields — the digits you dial in read as a monospace instrument readout,
+// distinct from the sans labels around them.
 const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       {...mantineHtmlProps}
-      className={`${bricolage.variable} ${instrument.variable} ${spaceMono.variable}`}
+      className={`${instrument.variable} ${spaceMono.variable}`}
     >
       <head>
         <ColorSchemeScript defaultColorScheme="light" />

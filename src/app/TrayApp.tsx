@@ -1,23 +1,29 @@
 "use client";
 
 import {
+  ActionIcon,
   Badge,
   Box,
   Group,
+  Menu,
   SegmentedControl,
   SimpleGrid,
   Stack,
+  Text,
+  TextInput,
   Title,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
+import { ChevronDown, Pencil } from "lucide-react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock } from "@/app/CompartmentDock";
-import { DesignSwitcher } from "@/app/DesignSwitcher";
+import { DesignNav } from "@/app/DesignNav";
 import { ExportBar } from "@/app/ExportBar";
-import type { DesignId } from "@/app/lib/designs";
+import { LidTypeMenu } from "@/app/LidTypeMenu";
+import { DESIGNS, type DesignId } from "@/app/lib/designs";
 import {
   defaultParams,
   defaultStructure,
@@ -41,6 +47,7 @@ import { defaultWyrmwoodParams, topRect, type WyrmwoodParams } from "@/app/lib/w
 import { PlanView } from "@/app/PlanView";
 import { QuickDrawPanel } from "@/app/QuickDrawPanel";
 import { TraySettingsBand } from "@/app/TraySettingsBand";
+import { ViewerBoundary } from "@/app/ViewerBoundary";
 import { WyrmwoodPanel } from "@/app/WyrmwoodPanel";
 
 const TrayViewer = dynamic(async () => import("@/app/TrayViewer").then((m) => m.TrayViewer), {
@@ -206,6 +213,7 @@ type Layout = "mobile" | "tablet" | "desktop";
 export function TrayApp() {
   const [units, setUnits] = React.useState<Units>("mm");
   const [view, setView] = React.useState<"plan" | "3d">("plan");
+  const [editingName, setEditingName] = React.useState(false);
 
   // Mobile keeps the single-column card with a plan/3D toggle; tablet and
   // desktop show the plan and 3D previews side by side at once. Both queries
@@ -337,28 +345,112 @@ export function TrayApp() {
     };
   }, [design, parameters, wyrmwood]);
 
+  const summary =
+    design === "quick-draw"
+      ? `${quickDraw.deckCount} deck${quickDraw.deckCount === 1 ? "" : "s"}`
+      : `${count} bins · ${dispVal(planParams.width, units)}×${dispVal(planParams.height, units)}×${dispVal(
+          design === "wyrmwood" ? wyrmwood.thickness : effectiveParameters.depth,
+          units,
+        )}`;
+
+  // The model name lives in each design's own params. Editing it moves through
+  // the same channel the rest of that design's params use.
+  const setModelName = (name: string) => {
+    if (design === "quick-draw") {
+      setQuickDraw((p) => ({ ...p, modelName: name }));
+    } else if (design === "wyrmwood") {
+      setWyrmwood((p) => ({ ...p, modelName: name }));
+    } else {
+      dispatch({ type: "patchParams", patch: { modelName: name } });
+    }
+  };
+
+  const modelName = (workerParams.modelName as string).trim() || DESIGNS[design].label;
+
   const titleBlock = (
-    <Group gap="xs">
-      <Title order={1} size="h4">
-        {design === "quick-draw"
-          ? `${quickDraw.deckCount} deck${quickDraw.deckCount === 1 ? "" : "s"}`
-          : `${count} bins · ${dispVal(planParams.width, units)}×${dispVal(planParams.height, units)}×${dispVal(
-              design === "wyrmwood" ? wyrmwood.thickness : effectiveParameters.depth,
-              units,
-            )}`}
-      </Title>
-      <Badge
-        variant="default"
-        ff="monospace"
-        style={{ cursor: "pointer" }}
-        title="Switch units"
-        onClick={() => {
-          setUnits((u) => (u === "mm" ? "inch" : "mm"));
-        }}
-      >
-        {units}
-      </Badge>
-    </Group>
+    <Stack gap={2}>
+      {editingName ? (
+        <TextInput
+          variant="unstyled"
+          aria-label="Model name"
+          autoFocus
+          value={workerParams.modelName as string}
+          placeholder={DESIGNS[design].label}
+          onChange={(e) => {
+            setModelName(e.currentTarget.value);
+          }}
+          onBlur={() => {
+            setEditingName(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Escape") {
+              setEditingName(false);
+            }
+          }}
+          styles={{
+            input: {
+              fontSize: "var(--mantine-h4-font-size)",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              height: "auto",
+              minHeight: 0,
+              color: "var(--mantine-color-black)",
+            },
+          }}
+        />
+      ) : (
+        <Group gap={6} wrap="nowrap">
+          <Title order={1} size="h4">
+            {modelName}
+          </Title>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="sm"
+            aria-label="Rename"
+            onClick={() => {
+              setEditingName(true);
+            }}
+          >
+            <Pencil size={15} />
+          </ActionIcon>
+        </Group>
+      )}
+      <Group gap="xs">
+        <Text fz="sm" c="dimmed">
+          {summary}
+        </Text>
+        <Menu shadow="md" position="bottom-start" withArrow>
+          <Menu.Target>
+            <Badge
+              variant="default"
+              ff="monospace"
+              rightSection={<ChevronDown size={12} />}
+              style={{ cursor: "pointer" }}
+              title="Units"
+            >
+              {units}
+            </Badge>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              onClick={() => {
+                setUnits("mm");
+              }}
+            >
+              mm
+            </Menu.Item>
+            <Menu.Item
+              onClick={() => {
+                setUnits("inch");
+              }}
+            >
+              inch
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Group>
+    </Stack>
   );
 
   const viewToggle = (
@@ -404,6 +496,24 @@ export function TrayApp() {
     />
   );
 
+  // The 2D preview, with the lid-type menu docked at its top (token tray only —
+  // the accessory has no lid). The plan itself still flex-grows to fill.
+  const planSection = hasPlan ? (
+    <Stack gap={0} h={wide ? "100%" : undefined} miw={0} mih={0}>
+      {design === "token-tray" && (
+        <Box px={wide ? 0 : "lg"} pt="xs" style={{ alignSelf: "flex-start" }}>
+          <LidTypeMenu
+            value={parameters.lidType}
+            onChange={(patch) => {
+              dispatch({ type: "patchParams", patch });
+            }}
+          />
+        </Box>
+      )}
+      {planEl}
+    </Stack>
+  ) : null;
+
   const viewerEl = (
     <Box
       pos="relative"
@@ -413,7 +523,9 @@ export function TrayApp() {
       mx={wide ? 0 : "lg"}
       mt={wide ? 0 : "md"}
     >
-      <TrayViewer mesh={mesh} loading={loading} />
+      <ViewerBoundary>
+        <TrayViewer mesh={mesh} loading={loading} />
+      </ViewerBoundary>
       {error && (
         <Badge color="red" pos="absolute" bottom={8} left="50%" style={{ translate: "-50%" }}>
           {error}
@@ -528,8 +640,8 @@ export function TrayApp() {
     <ExportBar fmt={fmt} exporting={exporting} onPickFmt={setFmt} onExport={handleExport} />
   );
 
-  const designSwitcher = (
-    <DesignSwitcher
+  const designNav = (
+    <DesignNav
       design={design}
       onChange={(id) => {
         dispatch({ type: "setDesign", id });
@@ -539,7 +651,6 @@ export function TrayApp() {
 
   const controls = (
     <>
-      {designSwitcher}
       {design === "token-tray" && (
         <>
           {settingsBand}
@@ -576,25 +687,28 @@ export function TrayApp() {
   // in a fixed right rail that scrolls independently.
   if (layout === "desktop") {
     return (
-      <Group h="100dvh" gap={0} align="stretch" wrap="nowrap">
-        <Stack flex={1} miw={0} gap={0}>
-          <Box px="lg" pt="md">
-            {titleBlock}
-          </Box>
-          <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" flex={1} mih={0} px="lg" pb="md">
-            {hasPlan && planEl}
-            {viewerEl}
-          </SimpleGrid>
-        </Stack>
-        <Stack
-          w={400}
-          gap={0}
-          bg="sand.1"
-          style={{ overflowY: "auto", borderLeft: "1px solid var(--mantine-color-sand-5)" }}
-        >
-          {controls}
-        </Stack>
-      </Group>
+      <Stack h="100dvh" gap={0}>
+        {designNav}
+        <Group flex={1} mih={0} gap={0} align="stretch" wrap="nowrap">
+          <Stack flex={1} miw={0} gap={0}>
+            <Box px="lg" pt="md">
+              {titleBlock}
+            </Box>
+            <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" flex={1} mih={0} px="lg" pb="md">
+              {planSection}
+              {viewerEl}
+            </SimpleGrid>
+          </Stack>
+          <Stack
+            w={400}
+            gap={0}
+            bg="sand.1"
+            style={{ overflowY: "auto", borderLeft: "1px solid var(--mantine-color-sand-5)" }}
+          >
+            {controls}
+          </Stack>
+        </Group>
+      </Stack>
     );
   }
 
@@ -602,11 +716,12 @@ export function TrayApp() {
   if (layout === "tablet") {
     return (
       <Stack gap={0} mih="100dvh">
+        {designNav}
         <Box px="lg" pt="md">
           {titleBlock}
         </Box>
         <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" h={340} px="lg" pb="sm">
-          {hasPlan && planEl}
+          {planSection}
           {viewerEl}
         </SimpleGrid>
         {controls}
@@ -617,11 +732,12 @@ export function TrayApp() {
   // Mobile: single column with a plan/3D toggle.
   return (
     <Stack gap={0} mih="100dvh">
+      {designNav}
       <Group justify="space-between" px="lg" pt="md" pb={6}>
         {titleBlock}
         {hasPlan && viewToggle}
       </Group>
-      {hasPlan && view === "plan" ? planEl : viewerEl}
+      {hasPlan && view === "plan" ? planSection : viewerEl}
       {controls}
     </Stack>
   );

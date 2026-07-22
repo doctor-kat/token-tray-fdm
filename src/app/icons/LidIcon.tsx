@@ -46,6 +46,16 @@ const CLOSURES: Record<Exclude<LidType, "none">, { faces: string[]; arrow: strin
   },
 };
 
+// The drawn extent of each icon within the 64×66 design frame. The frame has
+// slack that differs per type (the bare tray sits low, the sliding lid sits
+// right), so we frame each icon to its own content instead — see below.
+const CONTENT: Record<LidType, { x0: number; y0: number; x1: number; y1: number }> = {
+  none: { x0: 18, y0: 36, x1: 46, y1: 60 },
+  lid: { x0: 13.8, y0: 7.6, x1: 50.2, y1: 60 },
+  cover: { x0: 18, y0: 18.72, x1: 46, y1: 60 },
+  "sliding-lid": { x0: 18, y0: 31.63, x1: 61.4, y1: 60 },
+};
+
 export function LidIcon({
   type,
   size = 46,
@@ -58,11 +68,21 @@ export function LidIcon({
 }) {
   const closure = type === "none" ? null : CLOSURES[type];
 
+  // Frame each icon to its own content, centered in a square viewBox: take the
+  // content's center and size the box to its longest side plus a uniform margin.
+  // This drops the per-type slack in the design frame, so every icon sits
+  // centered and fills the space to a comparable degree (no bottom-heavy tray,
+  // no right-heavy sliding lid).
+  const b = CONTENT[type];
+  const cx = (b.x0 + b.x1) / 2;
+  const cy = (b.y0 + b.y1) / 2;
+  const side = Math.max(b.x1 - b.x0, b.y1 - b.y0) + 12;
+
   return (
     <svg
-      viewBox="0 0 64 66"
+      viewBox={`${cx - side / 2} ${cy - side / 2} ${side} ${side}`}
       width={size}
-      height={Math.round((size * 66) / 64)}
+      height={size}
       aria-hidden="true"
       focusable="false"
       style={{ display: "block" }}
