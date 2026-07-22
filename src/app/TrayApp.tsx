@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Badge,
   Box,
+  type BoxProps,
   Group,
   Menu,
   SegmentedControl,
@@ -13,11 +14,13 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
-import { ChevronDown, Pencil } from "lucide-react";
+import { ChevronDown, Pencil, Ruler } from "lucide-react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
+import { AppFooter } from "@/app/AppFooter";
+import { PrintEstimate } from "@/app/PrintEstimate";
+import { DIMENSION_MD, DIMENSION_SM, HEADER_SECTION } from "@/app/theme";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock } from "@/app/CompartmentDock";
 import { DesignNav } from "@/app/DesignNav";
@@ -46,7 +49,7 @@ import { dispVal, type Units } from "@/app/lib/units";
 import { defaultWyrmwoodParams, topRect, type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { PlanView } from "@/app/PlanView";
 import { QuickDrawPanel } from "@/app/QuickDrawPanel";
-import { TraySettingsBand } from "@/app/TraySettingsBand";
+import { FieldVariantProvider, TraySettingsBand } from "@/app/TraySettingsBand";
 import { ViewerBoundary } from "@/app/ViewerBoundary";
 import { WyrmwoodPanel } from "@/app/WyrmwoodPanel";
 
@@ -208,20 +211,108 @@ function trayReducer(state: TrayState, action: TrayAction): TrayState {
   }
 }
 
-type Layout = "mobile" | "tablet" | "desktop";
+// The three layouts are chosen purely by viewport width, not by device class.
+// The names come from the Stitch artboards they were drawn against, but a
+// narrow window on a large monitor gets the narrow layout and nothing about
+// the device is inferred.
+//
+// WIDE starts at the 1280 the desktop artboard was drawn at, because that is
+// the width where the 400px control rail plus two preview panes stop being
+// cramped — at 1080 the panes would be ~340 each, so that lands on MID.
+type Layout = "narrow" | "mid" | "wide";
+
+const MID_MIN = 768;
+const WIDE_MIN = 1280;
+
+/** Subscribes to a media query.
+ *
+ * `useMediaQuery` from @mantine/hooks defers its first real read to an effect,
+ * and that read was not landing here — a fresh load at desktop width rendered
+ * the mobile branch until something else forced a resize. `useSyncExternalStore`
+ * has the server snapshot built into its contract, so the client picks up the
+ * true value on the first commit after hydration.
+ */
+function useMedia(query: string) {
+  const subscribe = React.useCallback(
+    (onChange: () => void) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      // `resize` looks redundant next to the query's own change event, but the
+      // two are not equivalent: `change` only fires when the breakpoint is
+      // *crossed*. If the viewport settles to its real size after hydration —
+      // which is what left a desktop-width load stuck in the mobile layout —
+      // no threshold is crossed and only `resize` reports it.
+      window.addEventListener("resize", onChange);
+      return () => {
+        list.removeEventListener("change", onChange);
+        window.removeEventListener("resize", onChange);
+      };
+    },
+    [query],
+  );
+
+  return React.useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => false, // server render: assume the narrow layout
+  );
+}
+
+/** A preview pane: square-cornered, hairline-bordered, with a floating badge
+ * naming the view. The badge is what tells the two panes apart at a glance,
+ * since neither has a title bar of its own. */
+function PreviewPanel({
+  label,
+  grid = false,
+  children,
+  ...rest
+}: {
+  label: string;
+  /** Lays the graph-paper backdrop behind the content (the 2D plan view). */
+  grid?: boolean;
+  children: React.ReactNode;
+} & BoxProps) {
+  return (
+    <Box
+      pos="relative"
+      // The graph-paper panel deliberately takes no `bg` prop: Mantine emits it
+      // as a `background` shorthand, which would reset the class's
+      // background-image. `.grid-paper` carries its own surface color instead.
+      bg={grid ? undefined : "sand.2"}
+      className={grid ? "grid-paper" : undefined}
+      style={{ border: "1px solid var(--mantine-color-sand-6)", overflow: "hidden" }}
+      {...rest}
+    >
+      <Box
+        pos="absolute"
+        top="var(--mantine-spacing-md)"
+        left="var(--mantine-spacing-md)"
+        px="sm"
+        py={2}
+        bg="sand.0"
+        style={{ border: "1px solid var(--mantine-color-sand-6)", zIndex: 10 }}
+      >
+        <Text component="span" c="sand.9" style={HEADER_SECTION}>
+          {label}
+        </Text>
+      </Box>
+      {children}
+    </Box>
+  );
+}
 
 export function TrayApp() {
   const [units, setUnits] = React.useState<Units>("mm");
   const [view, setView] = React.useState<"plan" | "3d">("plan");
   const [editingName, setEditingName] = React.useState(false);
 
-  // Mobile keeps the single-column card with a plan/3D toggle; tablet and
-  // desktop show the plan and 3D previews side by side at once. Both queries
-  // start false during SSR (the viewer is client-only anyway) and settle on mount.
-  const tablet = useMediaQuery("(min-width: 768px)", false);
-  const desktop = useMediaQuery("(min-width: 1080px)", false);
-  const layout: Layout = desktop ? "desktop" : tablet ? "tablet" : "mobile";
-  const wide = layout !== "mobile";
+  // Narrow keeps the single-column card with a plan/3D toggle; mid and wide
+  // show the plan and 3D previews side by side at once. Both queries start
+  // false during SSR (the viewer is client-only anyway) and settle on mount.
+  const atLeastMid = useMedia(`(min-width: ${MID_MIN}px)`);
+  const atLeastWide = useMedia(`(min-width: ${WIDE_MIN}px)`);
+  const layout: Layout = atLeastWide ? "wide" : atLeastMid ? "mid" : "narrow";
+  const sideBySide = layout !== "narrow";
 
   const [state, dispatch] = React.useReducer(trayReducer, {
     params: defaultParams,
@@ -287,7 +378,7 @@ export function TrayApp() {
     design === "token-tray" ? effectiveParameters : design === "quick-draw" ? quickDraw : wyrmwood;
   const workerStructure = design === "quick-draw" ? null : structure;
 
-  const { mesh, loading, error, exportModel } = useTrayWorker(
+  const { mesh, volume, loading, error, exportModel } = useTrayWorker(
     design,
     workerParams,
     workerStructure,
@@ -389,8 +480,9 @@ export function TrayApp() {
           }}
           styles={{
             input: {
-              fontSize: "var(--mantine-h4-font-size)",
-              fontWeight: 700,
+              fontSize: "var(--mantine-h1-font-size)",
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
               lineHeight: 1.2,
               height: "auto",
               minHeight: 0,
@@ -399,10 +491,8 @@ export function TrayApp() {
           }}
         />
       ) : (
-        <Group gap={6} wrap="nowrap">
-          <Title order={1} size="h4">
-            {modelName}
-          </Title>
+        <Group gap="sm" wrap="nowrap">
+          <Title order={1}>{modelName}</Title>
           <ActionIcon
             variant="subtle"
             color="gray"
@@ -416,8 +506,8 @@ export function TrayApp() {
           </ActionIcon>
         </Group>
       )}
-      <Group gap="xs">
-        <Text fz="sm" c="dimmed">
+      <Group gap="md">
+        <Text c="sand.8" tt="uppercase" style={DIMENSION_MD}>
           {summary}
         </Text>
         <Menu shadow="md" position="bottom-start" withArrow>
@@ -492,16 +582,31 @@ export function TrayApp() {
       onToggleLockL={() => {
         toggleFlag("lockL");
       }}
-      fill={wide}
+      fill={sideBySide}
     />
   );
 
   // The 2D preview, with the lid-type menu docked at its top (token tray only —
   // the accessory has no lid). The plan itself still flex-grows to fill.
   const planSection = hasPlan ? (
-    <Stack gap={0} h={wide ? "100%" : undefined} miw={0} mih={0}>
+    <PreviewPanel
+      label="2D Plan View"
+      grid
+      h={sideBySide ? "100%" : undefined}
+      miw={0}
+      mih={0}
+      mx={sideBySide ? 0 : "lg"}
+      style={{
+        border: "1px solid var(--mantine-color-sand-6)",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* The lid picker sits inside the plan panel, tucked under the badge so
+          it reads as a property of the drawing rather than a page-level control. */}
       {design === "token-tray" && (
-        <Box px={wide ? 0 : "lg"} pt="xs" style={{ alignSelf: "flex-start" }}>
+        <Box pt={44} pl="md" style={{ alignSelf: "flex-start" }}>
           <LidTypeMenu
             value={parameters.lidType}
             onChange={(patch) => {
@@ -511,17 +616,15 @@ export function TrayApp() {
         </Box>
       )}
       {planEl}
-    </Stack>
+    </PreviewPanel>
   ) : null;
 
   const viewerEl = (
-    <Box
-      pos="relative"
-      bg="sand.2"
-      style={{ borderRadius: "var(--mantine-radius-md)", overflow: "hidden" }}
-      h={wide ? "100%" : 252}
-      mx={wide ? 0 : "lg"}
-      mt={wide ? 0 : "md"}
+    <PreviewPanel
+      label="3D Preview"
+      h={sideBySide ? "100%" : 252}
+      mx={sideBySide ? 0 : "lg"}
+      mt={sideBySide ? 0 : "md"}
     >
       <ViewerBoundary>
         <TrayViewer mesh={mesh} loading={loading} />
@@ -531,7 +634,7 @@ export function TrayApp() {
           {error}
         </Badge>
       )}
-    </Box>
+    </PreviewPanel>
   );
 
   const settingsBand = (
@@ -649,8 +752,24 @@ export function TrayApp() {
     />
   );
 
+  // The rail's masthead, naming what the sections below configure.
+  const railHeader = (
+    <Group gap="sm" px="lg" pt="lg" pb="xs" wrap="nowrap">
+      <Ruler size={20} color="var(--mantine-color-rust-6)" />
+      <Box>
+        <Text component="h2" c="sand.9" m={0} style={HEADER_SECTION}>
+          Project Config
+        </Text>
+        <Text c="sand.8" style={DIMENSION_SM}>
+          {DESIGNS[design].label}
+        </Text>
+      </Box>
+    </Group>
+  );
+
   const controls = (
     <>
+      {railHeader}
       {design === "token-tray" && (
         <>
           {settingsBand}
@@ -679,13 +798,17 @@ export function TrayApp() {
           {compartmentDock}
         </>
       )}
+      <Box px="lg" pt="lg" pb="md">
+        <PrintEstimate volume={volume} />
+      </Box>
       {exportBar}
     </>
   );
 
-  // Desktop: the app fills the viewport — previews in a left column, controls
-  // in a fixed right rail that scrolls independently.
-  if (layout === "desktop") {
+  // Wide: the app fills the viewport — previews in a left column, controls in a
+  // fixed right rail that scrolls independently. The rail is narrow, so fields
+  // keep their label-left/value-right row shape.
+  if (layout === "wide") {
     return (
       <Stack h="100dvh" gap={0}>
         {designNav}
@@ -702,18 +825,25 @@ export function TrayApp() {
           <Stack
             w={400}
             gap={0}
-            bg="sand.1"
-            style={{ overflowY: "auto", borderLeft: "1px solid var(--mantine-color-sand-5)" }}
+            bg="sand.2"
+            style={{
+              overflowY: "auto",
+              flex: "none",
+              borderLeft: "1px solid var(--mantine-color-sand-6)",
+            }}
           >
             {controls}
           </Stack>
         </Group>
+        <AppFooter />
       </Stack>
     );
   }
 
-  // Tablet: previews side by side across the top, controls stacked below.
-  if (layout === "tablet") {
+  // Mid: previews side by side across the top, controls in a full-width band
+  // below. The band is wide enough to lay fields out several to a row, so they
+  // switch to self-labelling capsule tiles.
+  if (layout === "mid") {
     return (
       <Stack gap={0} mih="100dvh">
         {designNav}
@@ -724,7 +854,8 @@ export function TrayApp() {
           {planSection}
           {viewerEl}
         </SimpleGrid>
-        {controls}
+        <FieldVariantProvider variant="tile">{controls}</FieldVariantProvider>
+        <AppFooter />
       </Stack>
     );
   }
@@ -739,6 +870,7 @@ export function TrayApp() {
       </Group>
       {hasPlan && view === "plan" ? planSection : viewerEl}
       {controls}
+      <AppFooter />
     </Stack>
   );
 }

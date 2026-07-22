@@ -63,8 +63,8 @@ export function PlanView({
       !c.customization.autoW ||
       !c.customization.autoL;
     const isScoop = (c.customization.bottomFillet ?? params.bottomFillet) > 0;
-    const bg = isSel ? "#fdefe7" : isCustom ? "#f7efe6" : "#fdfbf6";
-    const bd = isSel ? "2px solid #c2603a" : isCustom ? "2px solid #d8a68c" : "2px solid #d8cfbf";
+    const bg = isSel ? "var(--mantine-color-rust-1)" : isCustom ? "var(--mantine-color-sand-2)" : "var(--mantine-color-sand-1)";
+    const bd = isSel ? "2px solid var(--mantine-color-rust-6)" : isCustom ? "2px solid var(--mantine-color-rust-3)" : "2px solid var(--mantine-color-sand-6)";
     return {
       cell: c,
       sel: isSel,
@@ -164,8 +164,8 @@ export function PlanView({
           // the mobile card is short, so it binds to height instead.
           ...(fill ? { width: "100%", maxHeight: "100%" } : { height: "100%", maxWidth: "100%" }),
           aspectRatio: ar,
-          background: "#efe9dc",
-          border: "1.5px solid #b8ac92",
+          background: "var(--mantine-color-sand-3)",
+          border: "1.5px solid var(--mantine-color-sand-7)",
           borderRadius: `${radiusPx}px`,
         }}
       >
@@ -186,7 +186,7 @@ export function PlanView({
               left: 2,
               right: 2,
               top: "50%",
-              borderTop: "1px solid #c9bfa8",
+              borderTop: "1px solid var(--mantine-color-sand-6)",
             }}
           />
           <button
@@ -206,16 +206,16 @@ export function PlanView({
               alignItems: "center",
               gap: 5,
               whiteSpace: "nowrap",
-              background: "#f4f1ea",
-              border: "1px solid #d8cfbf",
+              background: "var(--mantine-color-sand-0)",
+              border: "1px solid var(--mantine-color-sand-6)",
               borderRadius: 999,
               padding: "2px 9px",
               cursor: "pointer",
-              font: "700 11px 'Space Mono', monospace",
-              color: "#1c1a17",
+              font: "700 11px var(--font-space-mono), monospace",
+              color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={12} color={lockW ? "#8a8377" : "#c2603a"} />
+            <WandSparkles size={12} color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
             {dispVal(params.width, units)} {units}
           </button>
         </div>
@@ -237,7 +237,7 @@ export function PlanView({
               top: 2,
               bottom: 2,
               left: "50%",
-              borderLeft: "1px solid #c9bfa8",
+              borderLeft: "1px solid var(--mantine-color-sand-6)",
             }}
           />
           <button
@@ -257,16 +257,16 @@ export function PlanView({
               alignItems: "center",
               gap: 5,
               whiteSpace: "nowrap",
-              background: "#f4f1ea",
-              border: "1px solid #d8cfbf",
+              background: "var(--mantine-color-sand-0)",
+              border: "1px solid var(--mantine-color-sand-6)",
               borderRadius: 999,
               padding: "2px 9px",
               cursor: "pointer",
-              font: "700 11px 'Space Mono', monospace",
-              color: "#1c1a17",
+              font: "700 11px var(--font-space-mono), monospace",
+              color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={12} color={lockL ? "#8a8377" : "#c2603a"} />
+            <WandSparkles size={12} color={lockL ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
             {dispVal(params.height, units)} {units}
           </button>
         </div>
@@ -318,14 +318,14 @@ export function PlanView({
                     bottom: "24%",
                     borderRadius: "50%/70%",
                     background: bg,
-                    boxShadow: "inset 0 0 0 1.5px #d8a68c",
+                    boxShadow: "inset 0 0 0 1.5px var(--mantine-color-rust-3)",
                     pointerEvents: "none",
                   }}
                 />
               </>
             )}
             <div style={{ textAlign: "left", position: "relative" }}>
-              <span style={{ font: "600 11px 'Space Mono', monospace", color: "#1c1a17" }}>
+              <span style={{ font: "600 11px var(--font-space-mono), monospace", color: "var(--mantine-color-sand-9)" }}>
                 {Math.round(cell.rect.w)} × {Math.round(cell.rect.h)}
               </span>
             </div>
@@ -412,7 +412,7 @@ const splitBtnStyle: React.CSSProperties = {
   height: 34,
   borderRadius: "50%",
   border: "none",
-  background: "#1c1a17",
+  background: "var(--mantine-color-sand-9)",
   color: "#fff",
   display: "flex",
   alignItems: "center",
@@ -425,7 +425,7 @@ const addBtnStyle: React.CSSProperties = {
   width: 22,
   height: 22,
   borderRadius: "50%",
-  background: "#c2603a",
+  background: "var(--mantine-color-rust-6)",
   color: "#fff",
   display: "flex",
   alignItems: "center",

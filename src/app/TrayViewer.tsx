@@ -1,6 +1,15 @@
 "use client";
 
-import { Badge, Box, ColorSwatch, Group as MGroup, Paper, Text, Tooltip } from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  ColorSwatch,
+  Group as MGroup,
+  Popover,
+  Text,
+  Tooltip,
+} from "@mantine/core";
 import * as React from "react";
 import { syncFaces, syncLines, syncLinesFromFaces } from "replicad-threejs-helper";
 import {
@@ -259,39 +268,49 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
   return (
     <Box pos="relative" h="100%" w="100%">
       <Box ref={mountRef} h="100%" w="100%" />
-      <Paper
-        pos="absolute"
-        top={16}
-        left={16}
-        p="xs"
-        withBorder
-        shadow="sm"
-        bg="sand.0"
-        style={{ width: 200 }}
-      >
-        <Text size="xs" c="dimmed" mb={4}>
-          Filament
-        </Text>
-        <MGroup gap={6}>
-          {bambuMattePLA.map((f) => (
-            <Tooltip key={f.hex} label={f.name} withArrow openDelay={200}>
-              <ColorSwatch
-                component="button"
-                color={f.hex}
-                size={18}
-                onClick={() => {
-                  setColor(f.hex);
-                }}
-                style={{
-                  cursor: "pointer",
-                  outline: color === f.hex ? "2px solid var(--mantine-color-rust-6)" : undefined,
-                  outlineOffset: 2,
-                }}
-              />
-            </Tooltip>
-          ))}
-        </MGroup>
-      </Paper>
+      {/* Collapsed to a single swatch so the preview panel stays a clean
+          window onto the model; the full palette opens on demand. The top-left
+          corner belongs to the panel's own "3D Preview" badge. */}
+      <Popover position="top-start" withArrow shadow="md">
+        <Popover.Target>
+          <Tooltip label="Filament colour" withArrow openDelay={400}>
+            <ActionIcon
+              pos="absolute"
+              bottom={16}
+              left={16}
+              size={36}
+              variant="default"
+              aria-label="Filament colour"
+            >
+              <ColorSwatch color={color} size={18} withShadow={false} />
+            </ActionIcon>
+          </Tooltip>
+        </Popover.Target>
+        <Popover.Dropdown p="xs">
+          <Text size="sm" c="dimmed" mb={6}>
+            Filament
+          </Text>
+          <MGroup gap={6} style={{ width: 200 }}>
+            {bambuMattePLA.map((f) => (
+              <Tooltip key={f.hex} label={f.name} withArrow openDelay={200}>
+                <ColorSwatch
+                  component="button"
+                  color={f.hex}
+                  size={18}
+                  onClick={() => {
+                    setColor(f.hex);
+                  }}
+                  style={{
+                    cursor: "pointer",
+                    outline: color === f.hex ? "2px solid var(--mantine-color-rust-6)" : undefined,
+                    outlineOffset: 2,
+                  }}
+                />
+              </Tooltip>
+            ))}
+          </MGroup>
+        </Popover.Dropdown>
+      </Popover>
       {loading && (
         <Badge
           variant="default"
