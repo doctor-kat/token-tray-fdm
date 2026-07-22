@@ -47,8 +47,8 @@ export function CompartmentDock({
               variant="default"
               size="xs"
               radius="xl"
-              leftSection={<Shapes size={14} />}
-              rightSection={<ChevronDown size={13} />}
+              leftSection={<Shapes size={28} />}
+              rightSection={<ChevronDown size={26} />}
             >
               Presets
             </Button>
@@ -92,7 +92,7 @@ export function CompartmentDock({
         variant="light"
         color="red"
         radius="xl"
-        leftSection={<Trash2 size={16} />}
+        leftSection={<Trash2 size={32} />}
         onClick={onDelete}
       >
         Delete compartment

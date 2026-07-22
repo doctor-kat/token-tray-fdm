@@ -34,7 +34,7 @@ export function ExportBar({
         fullWidth
         loading={exporting}
         onClick={onExport}
-        leftSection={<Download size={18} />}
+        leftSection={<Download size={36} />}
         tt="uppercase"
         fw={600}
         styles={{ label: { letterSpacing: ".06em" } }}
@@ -47,7 +47,7 @@ export function ExportBar({
           variant="default"
           size="md"
           flex={1}
-          leftSection={<Share2 size={16} />}
+          leftSection={<Share2 size={32} />}
           title="Share config link"
         >
           Share
@@ -55,7 +55,7 @@ export function ExportBar({
         <Menu position="top-end" withinPortal>
           <Menu.Target>
             <ActionIcon variant="default" size={42} w={56} title="Choose export format">
-              <MoreHorizontal size={18} />
+              <MoreHorizontal size={36} />
             </ActionIcon>
           </Menu.Target>
           <Menu.Dropdown>
@@ -63,7 +63,7 @@ export function ExportBar({
             {FORMATS.map((f) => (
               <Menu.Item
                 key={f.value}
-                leftSection={<f.icon size={16} />}
+                leftSection={<f.icon size={32} />}
                 onClick={() => {
                   onPickFmt(f.value);
                 }}

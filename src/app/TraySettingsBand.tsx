@@ -138,7 +138,7 @@ export function Field({
   // The dimension sketches are the app's own artwork and carry real information
   // (which quantity the field edits), so they keep a size where the measure
   // arrows still read rather than shrinking to a generic 16px glyph.
-  const glyph = icon ? <ParamIcon name={icon} size={tile ? 24 : 32} /> : null;
+  const glyph = icon ? <ParamIcon name={icon} size={tile ? 48 : 64} /> : null;
 
   const capsule = (
     <Group
@@ -218,7 +218,7 @@ export function Field({
             style={{ display: "flex", alignItems: "center" }}
           >
             <WandSparkles
-              size={14}
+              size={28}
               color={`var(--mantine-color-${auto ? "rust-6" : "stone-8"})`}
               fill={auto ? "var(--mantine-color-rust-6)" : "none"}
             />

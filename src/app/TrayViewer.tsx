@@ -269,8 +269,7 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     <Box pos="relative" h="100%" w="100%">
       <Box ref={mountRef} h="100%" w="100%" />
       {/* Collapsed to a single swatch so the preview panel stays a clean
-          window onto the model; the full palette opens on demand. The top-left
-          corner belongs to the panel's own "3D Preview" badge. */}
+          window onto the model; the full palette opens on demand. */}
       <Popover position="top-start" withArrow shadow="md">
         <Popover.Target>
           <Tooltip label="Filament colour" withArrow openDelay={400}>
@@ -278,11 +277,11 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
               pos="absolute"
               bottom={16}
               left={16}
-              size={36}
+              size={56}
               variant="default"
               aria-label="Filament colour"
             >
-              <ColorSwatch color={color} size={18} withShadow={false} />
+              <ColorSwatch color={color} size={36} withShadow={false} />
             </ActionIcon>
           </Tooltip>
         </Popover.Target>
@@ -290,13 +289,13 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
           <Text size="sm" c="dimmed" mb={6}>
             Filament
           </Text>
-          <MGroup gap={6} style={{ width: 200 }}>
+          <MGroup gap={6} style={{ width: 320 }}>
             {bambuMattePLA.map((f) => (
               <Tooltip key={f.hex} label={f.name} withArrow openDelay={200}>
                 <ColorSwatch
                   component="button"
                   color={f.hex}
-                  size={18}
+                  size={36}
                   onClick={() => {
                     setColor(f.hex);
                   }}

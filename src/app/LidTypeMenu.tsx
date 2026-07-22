@@ -53,11 +53,11 @@ export function LidTypeMenu({
               borderRadius: 999,
             }}
           >
-            <LidIcon type={current.value} size={22} halo={TRIGGER_SURFACE} />
+            <LidIcon type={current.value} size={44} halo={TRIGGER_SURFACE} />
             <Text size="xs" fw={700} ff="monospace" c="black">
               {current.label}
             </Text>
-            <ChevronDown size={14} color="var(--mantine-color-sand-8)" />
+            <ChevronDown size={28} color="var(--mantine-color-sand-8)" />
           </Group>
         </UnstyledButton>
       </Menu.Target>
@@ -68,7 +68,7 @@ export function LidTypeMenu({
             onClick={() => {
               onChange({ lidType: o.value, lidTolerance: LID_TOLERANCE_DEFAULT[o.value] });
             }}
-            leftSection={<LidIcon type={o.value} size={30} halo={MENU_SURFACE} />}
+            leftSection={<LidIcon type={o.value} size={60} halo={MENU_SURFACE} />}
           >
             <Box>
               <Text size="sm" fw={700} ff="monospace">

@@ -215,7 +215,7 @@ export function PlanView({
               color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={12} color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
+            <WandSparkles size={24} color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
             {dispVal(params.width, units)} {units}
           </button>
         </div>
@@ -266,7 +266,7 @@ export function PlanView({
               color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={12} color={lockL ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
+            <WandSparkles size={24} color={lockL ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
             {dispVal(params.height, units)} {units}
           </button>
         </div>
