@@ -24,6 +24,7 @@ export function PlanView({
   lockL,
   onToggleLockW,
   onToggleLockL,
+  fill = false,
 }: {
   params: TrayParams;
   structure: SplitNode;
@@ -37,6 +38,9 @@ export function PlanView({
   lockL: boolean;
   onToggleLockW: () => void;
   onToggleLockL: () => void;
+  // When true, the plan grows to fill its parent panel (desktop/tablet
+  // side-by-side layout) instead of the fixed mobile card height.
+  fill?: boolean;
 }) {
   const innerRect: Rect = {
     x: 0,
@@ -125,16 +129,29 @@ export function PlanView({
 
   return (
     <div
-      style={{
-        flex: "none",
-        height: 252,
-        margin: "16px 20px 0",
-        padding: "34px 8px 6px 42px",
-        boxSizing: "border-box",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+      style={
+        fill
+          ? {
+              flex: "1 1 0",
+              minHeight: 0,
+              height: "100%",
+              padding: "36px 16px 12px 46px",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }
+          : {
+              flex: "none",
+              height: 252,
+              margin: "16px 20px 0",
+              padding: "34px 8px 6px 42px",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }
+      }
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: click-to-deselect backdrop, not a control */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: deselection is reachable via Tab/Escape on the cells themselves */}
@@ -142,9 +159,11 @@ export function PlanView({
         onClick={onDeselect}
         style={{
           position: "relative",
-          height: "100%",
+          // Fill panels are tall, so bind the tray box to the panel width and
+          // let height follow the aspect ratio (capped so it never overflows);
+          // the mobile card is short, so it binds to height instead.
+          ...(fill ? { width: "100%", maxHeight: "100%" } : { height: "100%", maxWidth: "100%" }),
           aspectRatio: ar,
-          maxWidth: "100%",
           background: "#efe9dc",
           border: "1.5px solid #b8ac92",
           borderRadius: `${radiusPx}px`,

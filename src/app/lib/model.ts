@@ -4,9 +4,12 @@
 // at the repo root) into TypeScript, with the split tree promoted to a fully
 // editable structure that the UI mutates.
 
+import { buildLidPart, cutLidRail } from "./lids";
 import type { Replicad } from "./replicad-types";
 
 export type SplitType = "vertical" | "horizontal" | null;
+
+export type LidType = "none" | "lid" | "sliding-lid" | "cover";
 
 export type CellCustomization = {
   depth: number | null; // null = auto (inherits tray height)
@@ -32,6 +35,13 @@ export type TrayParams = {
   sideFillet: number; // Outer vertical corner radius
   bottomFillet: number; // Scoop radius at compartment bottoms
   rimFillet: number; // Small rounding of the top rim
+
+  // --- Advanced options ---
+  lidType: LidType;
+  lidTolerance: number; // Clearance between the lid and the tray
+  lidInnerHeight: number; // Cover plug depth
+  withCoverLip: boolean; // Cover pull tab
+  modelName: string; // Names the exported part(s)
 };
 
 export const defaultParams: TrayParams = {
@@ -43,6 +53,11 @@ export const defaultParams: TrayParams = {
   sideFillet: 3,
   bottomFillet: 6,
   rimFillet: 0.4,
+  lidType: "none",
+  lidTolerance: 0.6,
+  lidInnerHeight: 3,
+  withCoverLip: true,
+  modelName: "",
 };
 
 export function uid(): string {
@@ -156,9 +171,26 @@ export function layoutCells(node: SplitNode, rect: Rect, wall: number): LeafCell
   return cells;
 }
 
-// Build the solid. `replicad` is injected so this runs inside the worker where
-// the OpenCascade WASM kernel has been initialised.
-export function buildTray(replicad: Replicad, parameters: TrayParams, structure: SplitNode) {
+// A named, independently-meshed/exported piece of the model.
+// biome-ignore lint/suspicious/noExplicitAny: replicad solids union to broad shape types
+export type TrayPart = { name: string; shape: any };
+
+const LID_PART_LABEL: Record<Exclude<LidType, "none">, string> = {
+  lid: "lid",
+  "sliding-lid": "sliding lid",
+  cover: "cover",
+};
+
+// Build the model as one or more named parts (tray first, then the lid if any).
+// Parts are kept separate — not fused into a compound — because meshing solids
+// together mangles the second solid's normals, so the lid would shade wrong.
+// `replicad` is injected so this runs inside the worker where the OpenCascade
+// WASM kernel has been initialised.
+export function buildTray(
+  replicad: Replicad,
+  parameters: TrayParams,
+  structure: SplitNode,
+): TrayPart[] {
   const {
     width,
     height,
@@ -224,5 +256,17 @@ export function buildTray(replicad: Replicad, parameters: TrayParams, structure:
     );
   }
 
-  return body;
+  // Cut the sliding-lid runners into the tray top (no-op for other lid types).
+  body = cutLidRail(replicad, body, parameters);
+
+  const baseName = parameters.modelName.trim() || "token-tray";
+  const parts: TrayPart[] = [{ name: `${baseName} - tray`, shape: body }];
+
+  // Add the chosen lid as a separate part beside the tray, if any.
+  const lid = buildLidPart(replicad, parameters, cells);
+  if (lid && parameters.lidType !== "none") {
+    parts.push({ name: `${baseName} - ${LID_PART_LABEL[parameters.lidType]}`, shape: lid });
+  }
+
+  return parts;
 }
