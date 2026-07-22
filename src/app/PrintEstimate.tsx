@@ -28,7 +28,9 @@ export function PrintEstimate({ volume }: { volume: number | null }) {
   const duration = formatDuration(volume / NOMINAL_FLOW_MM3_PER_S);
 
   return (
-    <Box p="md" bg="stone.1" style={{ borderRadius: "var(--mantine-radius-sm)" }}>
+    // Half width: the two figures are short, and at full width the card read as
+    // a section of its own rather than an aside.
+    <Box p="md" w="50%" bg="stone.1" style={{ borderRadius: "var(--mantine-radius-sm)" }}>
       <Text c="stone.8" mb="sm" style={DIMENSION_SM}>
         PRINT ESTIMATE
       </Text>

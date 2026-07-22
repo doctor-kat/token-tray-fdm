@@ -18,9 +18,8 @@ import { ChevronDown, Pencil, Ruler } from "lucide-react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
-import { AppFooter } from "@/app/AppFooter";
 import { PrintEstimate } from "@/app/PrintEstimate";
-import { DIMENSION_MD, DIMENSION_SM, HEADER_SECTION } from "@/app/theme";
+import { DIMENSION_MD, DIMENSION_SM } from "@/app/theme";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock } from "@/app/CompartmentDock";
 import { DesignNav } from "@/app/DesignNav";
@@ -226,48 +225,41 @@ const WIDE_MIN = 1280;
 
 /** Subscribes to a media query.
  *
- * `useMediaQuery` from @mantine/hooks defers its first real read to an effect,
- * and that read was not landing here — a fresh load at desktop width rendered
- * the mobile branch until something else forced a resize. `useSyncExternalStore`
- * has the server snapshot built into its contract, so the client picks up the
- * true value on the first commit after hydration.
+ * Starts false so the server and the hydrating client agree, then reads for
+ * real on mount. The unconditional `read()` inside the effect is the whole
+ * point: `change` fires only when the breakpoint is *crossed*, so a desktop
+ * load — where the query is already true and never flips — would otherwise
+ * leave the app stuck in the narrow layout forever. Nothing here can be
+ * replaced by `useSyncExternalStore`, which keeps the server snapshot until
+ * the store signals and so has exactly the same hole.
  */
 function useMedia(query: string) {
-  const subscribe = React.useCallback(
-    (onChange: () => void) => {
-      const list = window.matchMedia(query);
-      list.addEventListener("change", onChange);
-      // `resize` looks redundant next to the query's own change event, but the
-      // two are not equivalent: `change` only fires when the breakpoint is
-      // *crossed*. If the viewport settles to its real size after hydration —
-      // which is what left a desktop-width load stuck in the mobile layout —
-      // no threshold is crossed and only `resize` reports it.
-      window.addEventListener("resize", onChange);
-      return () => {
-        list.removeEventListener("change", onChange);
-        window.removeEventListener("resize", onChange);
-      };
-    },
-    [query],
-  );
+  const [matches, setMatches] = React.useState(false);
 
-  return React.useSyncExternalStore(
-    subscribe,
-    () => window.matchMedia(query).matches,
-    () => false, // server render: assume the narrow layout
-  );
+  React.useEffect(() => {
+    const list = window.matchMedia(query);
+    const read = () => {
+      setMatches(list.matches);
+    };
+
+    read();
+    list.addEventListener("change", read);
+    return () => {
+      list.removeEventListener("change", read);
+    };
+  }, [query]);
+
+  return matches;
 }
 
-/** A preview pane: square-cornered, hairline-bordered, with a floating badge
- * naming the view. The badge is what tells the two panes apart at a glance,
- * since neither has a title bar of its own. */
+/** A preview pane: square-cornered, hairline-bordered, and otherwise an
+ * unlabelled window onto its content — the drawing and the model identify
+ * themselves, so neither pane carries a title. */
 function PreviewPanel({
-  label,
   grid = false,
   children,
   ...rest
 }: {
-  label: string;
   /** Lays the graph-paper backdrop behind the content (the 2D plan view). */
   grid?: boolean;
   children: React.ReactNode;
@@ -283,19 +275,6 @@ function PreviewPanel({
       style={{ border: "1px solid var(--mantine-color-sand-6)", overflow: "hidden" }}
       {...rest}
     >
-      <Box
-        pos="absolute"
-        top="var(--mantine-spacing-md)"
-        left="var(--mantine-spacing-md)"
-        px="sm"
-        py={2}
-        bg="sand.0"
-        style={{ border: "1px solid var(--mantine-color-sand-6)", zIndex: 10 }}
-      >
-        <Text component="span" c="sand.9" style={HEADER_SECTION}>
-          {label}
-        </Text>
-      </Box>
       {children}
     </Box>
   );
@@ -496,13 +475,13 @@ export function TrayApp() {
           <ActionIcon
             variant="subtle"
             color="gray"
-            size="sm"
+            size="lg"
             aria-label="Rename"
             onClick={() => {
               setEditingName(true);
             }}
           >
-            <Pencil size={15} />
+            <Pencil size={30} />
           </ActionIcon>
         </Group>
       )}
@@ -515,7 +494,7 @@ export function TrayApp() {
             <Badge
               variant="default"
               ff="monospace"
-              rightSection={<ChevronDown size={12} />}
+              rightSection={<ChevronDown size={24} />}
               style={{ cursor: "pointer" }}
               title="Units"
             >
@@ -590,7 +569,6 @@ export function TrayApp() {
   // the accessory has no lid). The plan itself still flex-grows to fill.
   const planSection = hasPlan ? (
     <PreviewPanel
-      label="2D Plan View"
       grid
       h={sideBySide ? "100%" : undefined}
       miw={0}
@@ -603,10 +581,10 @@ export function TrayApp() {
         flexDirection: "column",
       }}
     >
-      {/* The lid picker sits inside the plan panel, tucked under the badge so
-          it reads as a property of the drawing rather than a page-level control. */}
+      {/* The lid picker sits inside the plan panel so it reads as a property of
+          the drawing rather than a page-level control. */}
       {design === "token-tray" && (
-        <Box pt={44} pl="md" style={{ alignSelf: "flex-start" }}>
+        <Box pt="md" pl="md" style={{ alignSelf: "flex-start" }}>
           <LidTypeMenu
             value={parameters.lidType}
             onChange={(patch) => {
@@ -621,7 +599,6 @@ export function TrayApp() {
 
   const viewerEl = (
     <PreviewPanel
-      label="3D Preview"
       h={sideBySide ? "100%" : 252}
       mx={sideBySide ? 0 : "lg"}
       mt={sideBySide ? 0 : "md"}
@@ -752,18 +729,14 @@ export function TrayApp() {
     />
   );
 
-  // The rail's masthead, naming what the sections below configure.
+  // The rail's masthead — just the active design, since the sections below
+  // speak for themselves.
   const railHeader = (
     <Group gap="sm" px="lg" pt="lg" pb="xs" wrap="nowrap">
-      <Ruler size={20} color="var(--mantine-color-rust-6)" />
-      <Box>
-        <Text component="h2" c="sand.9" m={0} style={HEADER_SECTION}>
-          Project Config
-        </Text>
-        <Text c="sand.8" style={DIMENSION_SM}>
-          {DESIGNS[design].label}
-        </Text>
-      </Box>
+      <Ruler size={40} color="var(--mantine-color-rust-6)" />
+      <Text c="sand.8" style={DIMENSION_SM}>
+        {DESIGNS[design].label}
+      </Text>
     </Group>
   );
 
@@ -814,7 +787,9 @@ export function TrayApp() {
         {designNav}
         <Group flex={1} mih={0} gap={0} align="stretch" wrap="nowrap">
           <Stack flex={1} miw={0} gap={0}>
-            <Box px="lg" pt="md">
+            {/* pb separates the dimension summary from the preview panes, which
+                otherwise butt straight up against it. */}
+            <Box px="lg" pt="md" pb="md">
               {titleBlock}
             </Box>
             <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" flex={1} mih={0} px="lg" pb="md">
@@ -835,7 +810,6 @@ export function TrayApp() {
             {controls}
           </Stack>
         </Group>
-        <AppFooter />
       </Stack>
     );
   }
@@ -847,7 +821,7 @@ export function TrayApp() {
     return (
       <Stack gap={0} mih="100dvh">
         {designNav}
-        <Box px="lg" pt="md">
+        <Box px="lg" pt="md" pb="md">
           {titleBlock}
         </Box>
         <SimpleGrid cols={hasPlan ? 2 : 1} spacing="md" h={340} px="lg" pb="sm">
@@ -855,7 +829,6 @@ export function TrayApp() {
           {viewerEl}
         </SimpleGrid>
         <FieldVariantProvider variant="tile">{controls}</FieldVariantProvider>
-        <AppFooter />
       </Stack>
     );
   }
@@ -864,13 +837,12 @@ export function TrayApp() {
   return (
     <Stack gap={0} mih="100dvh">
       {designNav}
-      <Group justify="space-between" px="lg" pt="md" pb={6}>
+      <Group justify="space-between" px="lg" pt="md" pb="md">
         {titleBlock}
         {hasPlan && viewToggle}
       </Group>
       {hasPlan && view === "plan" ? planSection : viewerEl}
       {controls}
-      <AppFooter />
     </Stack>
   );
 }
