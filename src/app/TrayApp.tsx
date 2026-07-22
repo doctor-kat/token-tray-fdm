@@ -14,12 +14,12 @@ import {
   TextInput,
   Title,
 } from "@mantine/core";
-import { ChevronDown, Pencil, Ruler } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
 import { PrintEstimate } from "@/app/PrintEstimate";
-import { DIMENSION_MD, DIMENSION_SM } from "@/app/theme";
+import { DIMENSION_MD } from "@/app/theme";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock } from "@/app/CompartmentDock";
 import { DesignNav } from "@/app/DesignNav";
@@ -729,20 +729,8 @@ export function TrayApp() {
     />
   );
 
-  // The rail's masthead — just the active design, since the sections below
-  // speak for themselves.
-  const railHeader = (
-    <Group gap="sm" px="lg" pt="lg" pb="xs" wrap="nowrap">
-      <Ruler size={40} color="var(--mantine-color-rust-6)" />
-      <Text c="sand.8" style={DIMENSION_SM}>
-        {DESIGNS[design].label}
-      </Text>
-    </Group>
-  );
-
   const controls = (
     <>
-      {railHeader}
       {design === "token-tray" && (
         <>
           {settingsBand}
