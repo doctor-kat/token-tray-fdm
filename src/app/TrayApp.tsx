@@ -18,12 +18,11 @@ import { ChevronDown, Pencil } from "lucide-react";
 import dynamic from "next/dynamic";
 import * as React from "react";
 import { AdvancedPanel } from "@/app/AdvancedPanel";
-import { PrintEstimate } from "@/app/PrintEstimate";
-import { DIMENSION_MD } from "@/app/theme";
 import { useTrayWorker } from "@/app/builder/useTrayWorker";
-import { CompartmentDock } from "@/app/CompartmentDock";
+import { CompartmentDock, type DimControl } from "@/app/CompartmentDock";
 import { DesignNav } from "@/app/DesignNav";
 import { ExportBar } from "@/app/ExportBar";
+import { CardTypeMenu } from "@/app/CardTypeMenu";
 import { LidTypeMenu } from "@/app/LidTypeMenu";
 import { DESIGNS, type DesignId } from "@/app/lib/designs";
 import {
@@ -34,7 +33,12 @@ import {
   type SplitNode,
   type TrayParams,
 } from "@/app/lib/model";
-import { defaultQuickDrawParams, type QuickDrawParams } from "@/app/lib/quick-draw";
+import {
+  CARD_PRESETS,
+  defaultQuickDrawParams,
+  quickDrawDims,
+  type QuickDrawParams,
+} from "@/app/lib/quick-draw";
 import {
   addNeighbor,
   findNode,
@@ -47,8 +51,10 @@ import {
 import { dispVal, type Units } from "@/app/lib/units";
 import { defaultWyrmwoodParams, topRect, type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { PlanView } from "@/app/PlanView";
+import { PrintEstimate } from "@/app/PrintEstimate";
 import { QuickDrawPanel } from "@/app/QuickDrawPanel";
 import { FieldVariantProvider, TraySettingsBand } from "@/app/TraySettingsBand";
+import { DIMENSION_MD } from "@/app/theme";
 import { ViewerBoundary } from "@/app/ViewerBoundary";
 import { WyrmwoodPanel } from "@/app/WyrmwoodPanel";
 
@@ -280,7 +286,7 @@ function PreviewPanel({
   );
 }
 
-export function TrayApp() {
+export function TrayApp({ initialDesign = "token-tray" }: { initialDesign?: DesignId }) {
   const [units, setUnits] = React.useState<Units>("mm");
   const [view, setView] = React.useState<"plan" | "3d">("plan");
   const [editingName, setEditingName] = React.useState(false);
@@ -295,10 +301,15 @@ export function TrayApp() {
 
   const [state, dispatch] = React.useReducer(trayReducer, {
     params: defaultParams,
-    design: "token-tray" as DesignId,
+    design: initialDesign,
     structures: { "token-tray": defaultStructure(), wyrmwood: defaultStructure() },
     selectedIds: { "token-tray": null, wyrmwood: null },
   });
+
+  React.useEffect(() => {
+    dispatch({ type: "setDesign", id: initialDesign });
+  }, [initialDesign]);
+
   const { params: parameters, design } = state;
   // The active design's tree and selection.
   const structure = state.structures[structuralDesign(design)];
@@ -369,7 +380,6 @@ export function TrayApp() {
   );
   const count = leafCount(structure);
 
-  const selectedIndex = selectedId ? cells.findIndex((c) => c.id === selectedId) + 1 : 0;
   const selectedCell = selectedId ? cells.find((c) => c.id === selectedId) : null;
   const selectedNode = selectedId ? findNode(structure, selectedId) : null;
 
@@ -636,12 +646,23 @@ export function TrayApp() {
     />
   );
 
-  const compartmentDock =
-    selectedId && selectedCell && selectedNode ? (
-      <CompartmentDock
-        index={selectedIndex}
-        units={units}
-        dims={[
+  // The roster shown in the compartment column: every leaf cell, in layout
+  // order, named by its position since the model carries no labels.
+  const entries = React.useMemo(
+    () =>
+      cells.map((c, i) => ({
+        id: c.id,
+        name: `Compartment ${i + 1}`,
+        w: c.rect.w,
+        l: c.rect.h,
+      })),
+    [cells],
+  );
+
+  // Empty when nothing is picked — the dock then shows its placeholder.
+  const dims: DimControl[] =
+    selectedId && selectedCell && selectedNode
+      ? [
           {
             label: "WIDTH",
             value: selectedCell.rect.w,
@@ -701,20 +722,35 @@ export function TrayApp() {
               });
             },
           },
-        ]}
-        onDelete={handleDelete}
-        onApplyPreset={(w, l) => {
-          dispatch({
-            type: "editStructure",
-            edit: (s) => {
-              let t = setLeafDimMm(s, selectedId, "w", w, innerRect, parameters.wallThickness);
-              t = setLeafDimMm(t, selectedId, "l", l, innerRect, parameters.wallThickness);
-              return t;
-            },
-          });
-        }}
-      />
-    ) : null;
+        ]
+      : [];
+
+  const compartmentDock = (
+    <CompartmentDock
+      units={units}
+      entries={entries}
+      selectedId={selectedId}
+      dims={dims}
+      onSelect={(id) => {
+        dispatch({ type: "select", id });
+      }}
+      onDelete={handleDelete}
+      onApplyPreset={(w, l) => {
+        if (!selectedId) {
+          return;
+        }
+
+        dispatch({
+          type: "editStructure",
+          edit: (s) => {
+            let t = setLeafDimMm(s, selectedId, "w", w, innerRect, parameters.wallThickness);
+            t = setLeafDimMm(t, selectedId, "l", l, innerRect, parameters.wallThickness);
+            return t;
+          },
+        });
+      }}
+    />
+  );
 
   const exportBar = (
     <ExportBar fmt={fmt} exporting={exporting} onPickFmt={setFmt} onExport={handleExport} />
@@ -729,37 +765,65 @@ export function TrayApp() {
     />
   );
 
+  // The tray's own parameters. Paired left-of the compartment column below.
+  const paramsColumn =
+    design === "token-tray" ? (
+      <>
+        {settingsBand}
+        {advancedPanel}
+      </>
+    ) : design === "quick-draw" ? (
+      <QuickDrawPanel
+        params={quickDraw}
+        units={units}
+        onChange={(patch) => {
+          setQuickDraw((p) => ({ ...p, ...patch }));
+        }}
+      />
+    ) : (
+      <WyrmwoodPanel
+        params={wyrmwood}
+        units={units}
+        onChange={(patch) => {
+          setWyrmwood((p) => ({ ...p, ...patch }));
+        }}
+      />
+    );
+
+  // Tray parameters and compartments are two independent subjects, so they sit
+  // as sibling columns rather than one long scroll — the compartment roster
+  // stays in view while the tray is being dimensioned. Quick Draw has no
+  // compartment tree, so it keeps the single column.
+  //
+  // A phone is too narrow to carry two columns, so there they stack.
+  const columns = !hasPlan ? (
+    paramsColumn
+  ) : sideBySide ? (
+    <Group align="stretch" gap={0} wrap="nowrap">
+      <Stack flex={1} miw={0} gap={0} pb="lg" bg="sand.1">
+        {compartmentDock}
+      </Stack>
+      <Stack
+        flex={1}
+        miw={0}
+        gap={0}
+        pb="lg"
+        style={{ borderLeft: "1px solid var(--mantine-color-sand-6)" }}
+      >
+        {paramsColumn}
+      </Stack>
+    </Group>
+  ) : (
+    <>
+      {compartmentDock}
+      {paramsColumn}
+    </>
+  );
+
   const controls = (
     <>
-      {design === "token-tray" && (
-        <>
-          {settingsBand}
-          {advancedPanel}
-          {compartmentDock}
-        </>
-      )}
-      {design === "quick-draw" && (
-        <QuickDrawPanel
-          params={quickDraw}
-          units={units}
-          onChange={(patch) => {
-            setQuickDraw((p) => ({ ...p, ...patch }));
-          }}
-        />
-      )}
-      {design === "wyrmwood" && (
-        <>
-          <WyrmwoodPanel
-            params={wyrmwood}
-            units={units}
-            onChange={(patch) => {
-              setWyrmwood((p) => ({ ...p, ...patch }));
-            }}
-          />
-          {compartmentDock}
-        </>
-      )}
-      <Box px="lg" pt="lg" pb="md">
+      {columns}
+      <Box px="lg" pt="lg" pb="md" style={{ borderTop: "1px solid var(--mantine-color-sand-6)" }}>
         <PrintEstimate volume={volume} />
       </Box>
       {exportBar}
@@ -786,7 +850,7 @@ export function TrayApp() {
             </SimpleGrid>
           </Stack>
           <Stack
-            w={400}
+            w={760}
             gap={0}
             bg="sand.2"
             style={{
