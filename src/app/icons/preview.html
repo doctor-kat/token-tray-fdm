@@ -1,28 +1,85 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tray closure icons</title>
+<title>Tray icon sources</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#fff8f3; font-family:'Instrument Sans',sans-serif; padding:40px; color:#1d1b18 }
+  .wrap { max-width:920px; margin:0 auto }
+  h1 { font:600 22px 'Instrument Sans'; letter-spacing:-.01em; margin:0 }
+  h2 { font:600 15px 'Instrument Sans'; margin:34px 0 10px }
+  p  { font:400 13px/1.6 'Instrument Sans'; color:#56423c; margin:6px 0 0; max-width:640px }
+  code { font:400 12px 'Space Mono',monospace; color:#99411e }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; margin-top:16px }
+  figure { margin:0; background:#ffffff; border:1px solid #dcc1b8; border-radius:14px; padding:16px;
+           display:flex; flex-direction:column; align-items:center; gap:10px }
+  figcaption { font:400 10px/1.35 'Space Mono',monospace; color:#89726a; text-align:center; word-break:break-all }
+  .swatches { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px; margin-top:14px }
+  .sw { display:flex; align-items:center; gap:10px; font:400 11px 'Space Mono',monospace; color:#56423c }
+  .chip { width:26px; height:26px; border-radius:7px; border:1px solid #dcc1b8; flex:none }
+</style>
 </head>
-<body style="margin:0;background:#e8e4db;font-family:'Instrument Sans',sans-serif;padding:40px">
-  <div style="max-width:760px;margin:0 auto">
-    <h1 style="font:600 22px 'Instrument Sans';color:#1c1a17;letter-spacing:-.01em;margin:0">Tray closure icons</h1>
-    <p style="font:400 13px/1.5 'Instrument Sans';color:#6b655c;margin:6px 0 28px;max-width:560px">Isometric tray + closure with an orange motion arrow. Three SVGs, 64×66 viewBox, scalable. Teal = closure (<code>#176b8a</code>), orange = motion (<code>#d1451f</code>). The arrow halo is <code>#f4f1ea</code> — recolor it to match the surface you place the icon on.</p>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-      <figure style="margin:0;background:#f4f1ea;border:1px solid #d8cfbf;border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px">
-        <img src="lid.svg" width="104" height="107" alt="LID">
-        <figcaption style="text-align:center"><div style="font:700 12px 'Space Mono',monospace;color:#1c1a17">LID</div><div style="font:400 11px/1.35 'Instrument Sans',sans-serif;color:#8a8377;margin-top:3px">Wraps around the tray</div><div style="font:600 10px 'Space Mono',monospace;color:#b0a488;margin-top:6px">lid.svg</div></figcaption>
-      </figure>
-      <figure style="margin:0;background:#f4f1ea;border:1px solid #d8cfbf;border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px">
-        <img src="sliding-lid.svg" width="104" height="107" alt="SLIDING LID">
-        <figcaption style="text-align:center"><div style="font:700 12px 'Space Mono',monospace;color:#1c1a17">SLIDING LID</div><div style="font:400 11px/1.35 'Instrument Sans',sans-serif;color:#8a8377;margin-top:3px">Slides in from the front</div><div style="font:600 10px 'Space Mono',monospace;color:#b0a488;margin-top:6px">sliding-lid.svg</div></figcaption>
-      </figure>
-      <figure style="margin:0;background:#f4f1ea;border:1px solid #d8cfbf;border-radius:14px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px">
-        <img src="cover.svg" width="104" height="107" alt="COVER">
-        <figcaption style="text-align:center"><div style="font:700 12px 'Space Mono',monospace;color:#1c1a17">COVER</div><div style="font:400 11px/1.35 'Instrument Sans',sans-serif;color:#8a8377;margin-top:3px">Press-fit onto the opening</div><div style="font:600 10px 'Space Mono',monospace;color:#b0a488;margin-top:6px">cover.svg</div></figcaption>
-      </figure>
+<body>
+  <div class="wrap">
+    <h1>Tray icon sources</h1>
+    <p>
+      The design sources for the app's artwork: dimension sketches for the numeric parameter fields
+      (64×64) and isometric closure icons for the lid picker (64×66). Every colour in these files is a
+      <code>var(--tt-icon-*, #fallback)</code> pair, so the icons re-tint with the app theme. The
+      custom properties are published from <code>src/app/theme.ts</code>; the fallbacks below are the
+      light-theme values, which is what you see here — an <code>&lt;img&gt;</code> is its own document
+      and can't read the page's variables.
+    </p>
+    <p>
+      What ships is <code>ParamIcon.tsx</code> and <code>LidIcon.tsx</code>, which inline the same
+      markup so the tokens actually resolve. Edit a sketch here, then mirror it there.
+    </p>
+
+    <h2>Roles</h2>
+    <div class="swatches">
+      <div class="sw"><span class="chip" style="background:#1d1b18"></span>--tt-icon-line</div>
+      <div class="sw"><span class="chip" style="background:#89726a"></span>--tt-icon-line-soft</div>
+      <div class="sw"><span class="chip" style="background:rgba(153,65,30,.08)"></span>--tt-icon-fill</div>
+      <div class="sw"><span class="chip" style="background:rgba(153,65,30,.14)"></span>--tt-icon-fill-strong</div>
+      <div class="sw"><span class="chip" style="background:#99411e"></span>--tt-icon-accent</div>
+      <div class="sw"><span class="chip" style="background:rgba(153,65,30,.3)"></span>--tt-icon-accent-soft</div>
+      <div class="sw"><span class="chip" style="background:#ffffff"></span>--tt-icon-halo</div>
+      <div class="sw"><span class="chip" style="background:#f9f2ed"></span>--tt-icon-face-top</div>
+      <div class="sw"><span class="chip" style="background:#ede7e2"></span>--tt-icon-face-left</div>
+      <div class="sw"><span class="chip" style="background:#e7e1dc"></span>--tt-icon-face-right</div>
+      <div class="sw"><span class="chip" style="background:#dcc1b8"></span>--tt-icon-face-inner</div>
+      <div class="sw"><span class="chip" style="background:#7b5455"></span>--tt-icon-closure</div>
+      <div class="sw"><span class="chip" style="background:#99411e"></span>--tt-icon-motion</div>
     </div>
-    <h2 style="font:600 15px 'Instrument Sans';color:#1c1a17;margin:34px 0 8px">Using them</h2>
-    <p style="font:400 13px/1.6 'Instrument Sans';color:#6b655c;margin:0;max-width:620px">Drop the <code>.svg</code> files into your assets and reference with <code>&lt;img src="lid.svg"&gt;</code>, or paste the SVG markup inline to control colors via CSS. To recolor: closure fills/strokes use the teal above, the arrow uses the orange. Set a fixed width (e.g. <code>width:24px</code>) — the viewBox scales cleanly.</p>
+
+    <h2>Closure icons</h2>
+    <div class="grid">
+      <figure><img src="lid--none.svg" width="96" height="99" alt=""><figcaption>lid--none.svg</figcaption></figure>
+      <figure><img src="lid--wrap.svg" width="96" height="99" alt=""><figcaption>lid--wrap.svg</figcaption></figure>
+      <figure><img src="lid--sliding.svg" width="96" height="99" alt=""><figcaption>lid--sliding.svg</figcaption></figure>
+      <figure><img src="lid--cover.svg" width="96" height="99" alt=""><figcaption>lid--cover.svg</figcaption></figure>
+    </div>
+
+    <h2>Dimension sketches</h2>
+    <p>Two variants were drawn for most quantities; the one the app ships is noted in <code>ParamIcon.tsx</code>.</p>
+    <div class="grid">
+      <figure><img src="height--arrows.svg" width="96" height="96" alt=""><figcaption>height--arrows.svg</figcaption></figure>
+      <figure><img src="height--profile.svg" width="96" height="96" alt=""><figcaption>height--profile.svg</figcaption></figure>
+      <figure><img src="wall-width--between-bins.svg" width="96" height="96" alt=""><figcaption>wall-width--between-bins.svg</figcaption></figure>
+      <figure><img src="wall-width--plan.svg" width="96" height="96" alt=""><figcaption>wall-width--plan.svg</figcaption></figure>
+      <figure><img src="wall-thickness--section.svg" width="96" height="96" alt=""><figcaption>wall-thickness--section.svg</figcaption></figure>
+      <figure><img src="wall-thickness--corner.svg" width="96" height="96" alt=""><figcaption>wall-thickness--corner.svg</figcaption></figure>
+      <figure><img src="outer-wall-thickness.svg" width="96" height="96" alt=""><figcaption>outer-wall-thickness.svg</figcaption></figure>
+      <figure><img src="side-fillet--corner.svg" width="96" height="96" alt=""><figcaption>side-fillet--corner.svg</figcaption></figure>
+      <figure><img src="side-fillet--radius.svg" width="96" height="96" alt=""><figcaption>side-fillet--radius.svg</figcaption></figure>
+      <figure><img src="bottom-fillet--radius.svg" width="96" height="96" alt=""><figcaption>bottom-fillet--radius.svg</figcaption></figure>
+      <figure><img src="bottom-fillet--fill.svg" width="96" height="96" alt=""><figcaption>bottom-fillet--fill.svg</figcaption></figure>
+      <figure><img src="inner-cover-depth--section.svg" width="96" height="96" alt=""><figcaption>inner-cover-depth--section.svg</figcaption></figure>
+      <figure><img src="inner-cover-depth--lip.svg" width="96" height="96" alt=""><figcaption>inner-cover-depth--lip.svg</figcaption></figure>
+      <figure><img src="lid-tolerance--clearance.svg" width="96" height="96" alt=""><figcaption>lid-tolerance--clearance.svg</figcaption></figure>
+      <figure><img src="lid-tolerance--interference.svg" width="96" height="96" alt=""><figcaption>lid-tolerance--interference.svg</figcaption></figure>
+      <figure><img src="export--download.svg" width="96" height="96" alt=""><figcaption>export--download.svg</figcaption></figure>
+      <figure><img src="export--box-out.svg" width="96" height="96" alt=""><figcaption>export--box-out.svg</figcaption></figure>
+    </div>
   </div>
 </body></html>

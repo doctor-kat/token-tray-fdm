@@ -4,18 +4,16 @@
 // surface the icon sits on. The .svg files alongside this one are the design
 // source (open preview.html to see them); this component is what ships.
 
+import { ICON } from "@/app/icons/tokens";
 import type { LidType } from "@/app/lib/model";
 
-const OUTLINE = "#1c1a17";
-const CLOSURE = "#176b8a"; // teal — the lid/cover/panel
-const MOTION = "#d1451f"; // orange — the motion arrow
-
-// The open tray, common to every icon.
+// The open tray, common to every icon: left and right side, top rim, then the
+// inner floor. Colours are theme roles (see tokens.ts), not literals.
 const TRAY = [
-  { d: "M18 43.1 L32 50.1 L32 60 L18 53 Z", fill: "#e2dbc9", w: 1.3 },
-  { d: "M46 43.1 L32 50.1 L32 60 L46 53 Z", fill: "#d7ceba", w: 1.3 },
-  { d: "M32 36.1 L46 43.1 L32 50.1 L18 43.1 Z", fill: "#efe9dc", w: 1.3 },
-  { d: "M32 38.9 L40.4 43.1 L32 47.3 L23.6 43.1 Z", fill: "#d5ccb6", w: 1.1 },
+  { d: "M18 43.1 L32 50.1 L32 60 L18 53 Z", fill: ICON.faceLeft, w: 1.3 },
+  { d: "M46 43.1 L32 50.1 L32 60 L46 53 Z", fill: ICON.faceRight, w: 1.3 },
+  { d: "M32 36.1 L46 43.1 L32 50.1 L18 43.1 Z", fill: ICON.faceTop, w: 1.3 },
+  { d: "M32 38.9 L40.4 43.1 L32 47.3 L23.6 43.1 Z", fill: ICON.faceInner, w: 1.1 },
 ];
 
 // Per-type closure faces (two sides + top) and the motion arrow (shaft + head).
@@ -59,11 +57,12 @@ const CONTENT: Record<LidType, { x0: number; y0: number; x1: number; y1: number 
 export function LidIcon({
   type,
   size = 46,
-  halo = "#f4f1ea",
+  halo = ICON.halo,
 }: {
   type: LidType;
   size?: number;
-  /** Behind-the-arrow knockout — set to the surface the icon sits on. */
+  /** Behind-the-arrow knockout — defaults to the themed surface token; pass a
+   * colour to match a surface the token doesn't describe. */
   halo?: string;
 }) {
   const closure = type === "none" ? null : CLOSURES[type];
@@ -89,7 +88,7 @@ export function LidIcon({
     >
       <g strokeLinejoin="round" strokeLinecap="round">
         {TRAY.map((p) => (
-          <path key={p.d} d={p.d} fill={p.fill} stroke={OUTLINE} strokeWidth={p.w} />
+          <path key={p.d} d={p.d} fill={p.fill} stroke={ICON.line} strokeWidth={p.w} />
         ))}
 
         {closure?.faces.map((d, i) => (
@@ -97,8 +96,8 @@ export function LidIcon({
             key={d}
             d={d}
             // The top face reads slightly denser than the two side faces.
-            fill={`rgba(23,107,138,${i === 2 ? 0.18 : 0.1})`}
-            stroke={CLOSURE}
+            fill={i === 2 ? ICON.closureFillStrong : ICON.closureFill}
+            stroke={ICON.closure}
             strokeWidth={1.5}
           />
         ))}
@@ -108,7 +107,7 @@ export function LidIcon({
           <path key={`halo-${d}`} d={d} fill="none" stroke={halo} strokeWidth={4.4} />
         ))}
         {closure?.arrow.map((d) => (
-          <path key={`arrow-${d}`} d={d} fill="none" stroke={MOTION} strokeWidth={1.9} />
+          <path key={`arrow-${d}`} d={d} fill="none" stroke={ICON.motion} strokeWidth={1.9} />
         ))}
       </g>
     </svg>
