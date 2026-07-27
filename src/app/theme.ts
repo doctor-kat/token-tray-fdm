@@ -199,6 +199,40 @@ export const theme = createTheme({
   other,
 });
 
+// The icon palette. Every colour in `src/app/icons` resolves through one of
+// these roles, so the dimension sketches and closure icons re-tint with the
+// theme instead of carrying baked-in hexes. They're derived from the ramps
+// above rather than from STITCH directly: changing `rust` or `sand` moves the
+// artwork with it. The .svg design sources repeat these as `var(--tt-icon-*,
+// #hex)` fallbacks so they still render correctly opened on their own.
+const ICON_TOKENS = {
+  /** Primary geometry outline — the silhouette of the part being measured. */
+  "--tt-icon-line": "var(--mantine-color-sand-9)",
+  /** Reference geometry: extension lines, hidden edges, inner outlines. */
+  "--tt-icon-line-soft": "var(--mantine-color-sand-7)",
+  /** Material wash inside a sectioned solid. */
+  "--tt-icon-fill": "color-mix(in srgb, var(--mantine-color-rust-6) 8%, transparent)",
+  /** The same wash where two sections overlap and must read denser. */
+  "--tt-icon-fill-strong": "color-mix(in srgb, var(--mantine-color-rust-6) 14%, transparent)",
+  /** Measure arrows, dimension lines, radius markers — the quantity itself. */
+  "--tt-icon-accent": "var(--mantine-color-rust-6)",
+  /** Accent as a fill (the interference hatch). */
+  "--tt-icon-accent-soft": "color-mix(in srgb, var(--mantine-color-rust-6) 30%, transparent)",
+  /** Knockout behind the motion arrow — set to the surface the icon sits on. */
+  "--tt-icon-halo": "var(--mantine-color-sand-0)",
+  // The isometric tray in the closure icons: four faces, lightest on top.
+  "--tt-icon-face-top": "var(--mantine-color-sand-2)",
+  "--tt-icon-face-left": "var(--mantine-color-sand-4)",
+  "--tt-icon-face-right": "var(--mantine-color-sand-5)",
+  "--tt-icon-face-inner": "var(--mantine-color-sand-6)",
+  /** The closure (lid / cover / sliding panel) drawn over the tray. */
+  "--tt-icon-closure": "var(--tt-secondary)",
+  "--tt-icon-closure-fill": "color-mix(in srgb, var(--tt-secondary) 10%, transparent)",
+  "--tt-icon-closure-fill-strong": "color-mix(in srgb, var(--tt-secondary) 18%, transparent)",
+  /** The arrow showing how the closure goes on. */
+  "--tt-icon-motion": "var(--mantine-color-rust-6)",
+} as const;
+
 // Publishes the non-ramp tokens as custom properties. PlanView draws its own
 // 2D layout and globals.css styles hover states — both need theme values
 // without a Mantine component to hang props on, and this is the seam for that.
@@ -211,6 +245,7 @@ export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
     "--tt-secondary": t.other.secondary,
     "--tt-secondary-container": t.other.secondaryContainer,
     "--tt-on-secondary-container": t.other.onSecondaryContainer,
+    ...ICON_TOKENS,
   },
   light: {},
   dark: {},
