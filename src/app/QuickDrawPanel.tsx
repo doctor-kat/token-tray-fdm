@@ -1,6 +1,7 @@
 "use client";
 
-import {Checkbox, Group, Select, Text } from "@mantine/core";
+import { Checkbox, Group, Select, Text } from "@mantine/core";
+import { CardTypeMenu } from "@/app/CardTypeMenu";
 import {
   CARD_PRESETS,
   type CardPresetId,
@@ -39,20 +40,14 @@ export function QuickDrawPanel({
   return (
     <>
       <Section title="Card box">
-        <Select
-          label="Card type"
+        <CardTypeMenu
           value={params.cardType}
-          onChange={(v) => {
-            if (v) {
-              pickCardType(v as CardPresetId);
-            }
-          }}
-          data={CARD_PRESETS.map((c) => ({ value: c.id, label: c.label }))}
-          allowDeselect={false}
+          onChange={pickCardType}
         />
 
         <FieldGroup>
           <Field
+            icon="cardHeight"
             label="Card height"
             value={params.cardHeight}
             units={units}
@@ -64,6 +59,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="cardWidth"
             label="Card width"
             value={params.cardWidth}
             units={units}
@@ -75,6 +71,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="deckHeight"
             label="Deck height"
             value={params.deckHeight}
             units={units}
@@ -85,6 +82,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="deckCount"
             label="Deck count"
             value={params.deckCount}
             units={units}
@@ -136,6 +134,7 @@ export function QuickDrawPanel({
       <Section title="Fit">
         <FieldGroup>
           <Field
+            icon="wall"
             label="Wall thickness"
             value={params.wallThickness}
             units={units}
@@ -147,6 +146,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="wall"
             label="Card tolerance"
             value={params.cardTolerance}
             units={units}
@@ -158,6 +158,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="bottom"
             label="Inner fillet"
             value={params.innerFilletRadius}
             units={units}
@@ -168,6 +169,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="lidCutout"
             label="Finger hole"
             value={params.fingerHoleSize}
             units={units}
@@ -178,6 +180,7 @@ export function QuickDrawPanel({
             }}
           />
           <Field
+            icon="lidTolerance"
             label="Lid tolerance"
             value={params.lidTolerance}
             units={units}
