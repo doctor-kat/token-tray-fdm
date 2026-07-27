@@ -63,8 +63,16 @@ export function PlanView({
       !c.customization.autoW ||
       !c.customization.autoL;
     const isScoop = (c.customization.bottomFillet ?? params.bottomFillet) > 0;
-    const bg = isSel ? "var(--mantine-color-rust-1)" : isCustom ? "var(--mantine-color-sand-2)" : "var(--mantine-color-sand-1)";
-    const bd = isSel ? "2px solid var(--mantine-color-rust-6)" : isCustom ? "2px solid var(--mantine-color-rust-3)" : "2px solid var(--mantine-color-sand-6)";
+    const bg = isSel
+      ? "var(--mantine-color-rust-1)"
+      : isCustom
+        ? "var(--mantine-color-sand-2)"
+        : "var(--mantine-color-sand-1)";
+    const bd = isSel
+      ? "2px solid var(--mantine-color-rust-6)"
+      : isCustom
+        ? "2px solid var(--mantine-color-rust-3)"
+        : "2px solid var(--mantine-color-sand-6)";
     return {
       cell: c,
       sel: isSel,
@@ -215,7 +223,10 @@ export function PlanView({
               color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={24} color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
+            <WandSparkles
+              size={24}
+              color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"}
+            />
             {dispVal(params.width, units)} {units}
           </button>
         </div>
@@ -266,7 +277,10 @@ export function PlanView({
               color: "var(--mantine-color-sand-9)",
             }}
           >
-            <WandSparkles size={24} color={lockL ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"} />
+            <WandSparkles
+              size={24}
+              color={lockL ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"}
+            />
             {dispVal(params.height, units)} {units}
           </button>
         </div>
@@ -325,7 +339,12 @@ export function PlanView({
               </>
             )}
             <div style={{ textAlign: "left", position: "relative" }}>
-              <span style={{ font: "600 11px var(--font-space-mono), monospace", color: "var(--mantine-color-sand-9)" }}>
+              <span
+                style={{
+                  font: "600 11px var(--font-space-mono), monospace",
+                  color: "var(--mantine-color-sand-9)",
+                }}
+              >
                 {Math.round(cell.rect.w)} × {Math.round(cell.rect.h)}
               </span>
             </div>

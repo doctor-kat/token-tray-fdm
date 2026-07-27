@@ -42,3 +42,8 @@ body {
 .plan-add-btn:hover {
   background: var(--mantine-color-rust-7) !important;
 }
+
+/* Roster rows in the compartment column. */
+.compartment-row:hover {
+  background: var(--mantine-color-sand-3);
+}

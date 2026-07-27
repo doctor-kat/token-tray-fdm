@@ -20,11 +20,12 @@ export const LID_TOLERANCE_DEFAULT: Record<LidType, number> = {
   cover: 0.2,
 };
 
-// Surfaces behind the lid-icon arrow halo, kept as literal hexes because the
-// halo is an SVG stroke attribute (`var(...)` wouldn't resolve there). The
-// trigger sits on the rail (`sand.1`); the dropdown items sit on white.
-const TRIGGER_SURFACE = "#f4f1ea";
-const MENU_SURFACE = "#ffffff";
+// Surfaces behind the lid-icon arrow halo. LidIcon renders inline SVG, so a
+// custom property resolves in its stroke attribute like anywhere else — these
+// stay theme tokens rather than hexes. The trigger sits on the rail paper; the
+// dropdown items sit on white.
+const TRIGGER_SURFACE = "var(--mantine-color-sand-2)";
+const MENU_SURFACE = "var(--mantine-color-white)";
 
 /** Compact dropdown for choosing the lid type. Lives above the 2D preview; the
  * per-lid settings live in their own "Lid settings" section. */

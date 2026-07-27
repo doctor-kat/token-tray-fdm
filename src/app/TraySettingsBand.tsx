@@ -1,12 +1,12 @@
 "use client";
 
-import { Group, NumberInput, SimpleGrid, Stack, Text, UnstyledButton } from "@mantine/core";
+import { Group, NumberInput, Stack, Text, UnstyledButton } from "@mantine/core";
 import { WandSparkles } from "lucide-react";
 import * as React from "react";
 import { ParamIcon, type ParamIconName } from "@/app/icons/ParamIcon";
 import type { TrayParams } from "@/app/lib/model";
-import { DIMENSION_MD, DIMENSION_SM, HEADER_SECTION, LABEL_XS } from "@/app/theme";
 import { dispVal, toMm, type Units } from "@/app/lib/units";
+import { DIMENSION_MD, DIMENSION_SM, HEADER_SECTION, LABEL_XS } from "@/app/theme";
 
 // The parameter capsules are outlined rather than filled: a warm hairline over
 // the lightest paper surface, which brightens to white on hover.
@@ -36,15 +36,21 @@ export function FieldVariantProvider({
   return <FieldVariantContext value={variant}>{children}</FieldVariantContext>;
 }
 
-/** Wraps a run of `Field`s: a stack in the rail, a three-up grid in the band.
- * Panels use this instead of a bare `Stack` so the arrangement follows the
- * variant without every panel restating it. */
+/** Wraps a run of `Field`s. Both variants stack vertically — the band's
+ * columns are no wider than the rail, so a multi-up grid would squeeze the
+ * capsules; only the field's own shape differs between the two.
+ *
+ * Tiles instead flow in rows at one fixed width, wrapping to however many fit
+ * — two in a roomy column, one when it narrows. The width is fixed rather than
+ * flexible so a short last row doesn't leave a stretched, odd-looking pill. */
+const TILE_W = 250;
+
 export function FieldGroup({ children }: { children: React.ReactNode }) {
   const variant = React.useContext(FieldVariantContext);
   return variant === "tile" ? (
-    <SimpleGrid cols={{ base: 2, md: 3 }} spacing="md" verticalSpacing="md">
+    <Group gap="md" align="stretch">
       {children}
-    </SimpleGrid>
+    </Group>
   ) : (
     <Stack gap="md">{children}</Stack>
   );
@@ -152,8 +158,8 @@ export function Field({
         border: FIELD_BORDER,
         borderRadius: 9999,
         // In the rail the capsule hugs its digits beside the label; as a tile
-        // it *is* the field, so it spans the grid cell.
-        flex: tile ? "1 1 auto" : "none",
+        // it *is* the field, so it takes the shared tile width and wraps.
+        flex: tile ? `0 1 ${TILE_W}px` : "none",
       }}
     >
       {tile && glyph}
@@ -167,63 +173,63 @@ export function Field({
           {label}
         </Text>
       )}
-        <NumberInput
-          aria-label={label}
-          variant="unstyled"
-          size="xs"
-          w={inputW}
-          value={shown}
-          disabled={auto}
-          step={step ?? 1}
-          min={min}
-          max={max}
-          clampBehavior="blur"
-          hideControls
-          styles={{
-            input: {
-              ...DIMENSION_MD,
-              minHeight: 0,
-              height: "auto",
-              width: "100%",
-              padding: 0,
-              textAlign: "right",
+      <NumberInput
+        aria-label={label}
+        variant="unstyled"
+        size="xs"
+        w={inputW}
+        value={shown}
+        disabled={auto}
+        step={step ?? 1}
+        min={min}
+        max={max}
+        clampBehavior="blur"
+        hideControls
+        styles={{
+          input: {
+            ...DIMENSION_MD,
+            minHeight: 0,
+            height: "auto",
+            width: "100%",
+            padding: 0,
+            textAlign: "right",
+            color: "var(--mantine-color-black)",
+            // Auto mode disables editing, but the value must stay just as
+            // legible as an active one — keep full ink contrast and only
+            // let the cursor signal that it's locked.
+            "&:disabled": {
               color: "var(--mantine-color-black)",
-              // Auto mode disables editing, but the value must stay just as
-              // legible as an active one — keep full ink contrast and only
-              // let the cursor signal that it's locked.
-              "&:disabled": {
-                color: "var(--mantine-color-black)",
-                opacity: 1,
-                cursor: "not-allowed",
-                background: "transparent",
-              },
+              opacity: 1,
+              cursor: "not-allowed",
+              background: "transparent",
             },
-          }}
-          onChange={(v) => {
-            if (typeof v === "number") {
-              onChange(isLength ? toMm(v, units) : v);
-            }
-          }}
-        />
-        {unit && (
-          <Text component="span" c="sand.8" style={{ ...DIMENSION_SM, whiteSpace: "nowrap" }}>
-            {unit.toUpperCase()}
-          </Text>
-        )}
-        {onToggleAuto && (
-          <UnstyledButton
-            component="span"
-            onClick={onToggleAuto}
-            title={`Auto ${label.toLowerCase()}`}
-            style={{ display: "flex", alignItems: "center" }}
-          >
-            <WandSparkles
-              size={28}
-              color={`var(--mantine-color-${auto ? "rust-6" : "stone-8"})`}
-              fill={auto ? "var(--mantine-color-rust-6)" : "none"}
-            />
-          </UnstyledButton>
-        )}
+          },
+        }}
+        onChange={(v) => {
+          if (typeof v === "number") {
+            onChange(isLength ? toMm(v, units) : v);
+          }
+        }}
+      />
+      {unit && (
+        <Text component="span" c="sand.8" style={{ ...DIMENSION_SM, whiteSpace: "nowrap" }}>
+          {unit.toUpperCase()}
+        </Text>
+      )}
+      {onToggleAuto && (
+        <UnstyledButton
+          component="span"
+          onClick={onToggleAuto}
+          title={`Auto ${label.toLowerCase()}`}
+          style={{ display: "flex", alignItems: "center" }}
+        >
+          <WandSparkles
+            size={28}
+            color={`var(--mantine-color-${auto ? "rust-6" : "stone-8"})`}
+            fill={auto ? "var(--mantine-color-rust-6)" : "none"}
+          />
+        </UnstyledButton>
+      )}
     </Group>
   );
 

@@ -1,6 +1,6 @@
 "use client";
 
-import {Checkbox } from "@mantine/core";
+import { Checkbox } from "@mantine/core";
 import type { TrayParams } from "@/app/lib/model";
 import type { Units } from "@/app/lib/units";
 import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";

@@ -71,10 +71,7 @@ globalThis.onmessage = async (e: MessageEvent<InMessage>) => {
       const { faces, edges } = combineMeshes(meshed);
       // The kernel already has the solid in hand, so the material estimate
       // rides along with the mesh rather than costing a second build.
-      const volume = parts.reduce(
-        (total, part) => total + replicad.measureVolume(part.shape),
-        0,
-      );
+      const volume = parts.reduce((total, part) => total + replicad.measureVolume(part.shape), 0);
       globalThis.postMessage({
         type: "built",
         id: message.id,

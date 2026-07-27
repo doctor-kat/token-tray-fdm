@@ -47,7 +47,13 @@ export function ExportBar({
         </Button>
         <Menu position="top-end" withinPortal>
           <Menu.Target>
-            <Button size="md" px="sm" title="Choose export format" aria-label="Choose export format">
+            <Button
+              size="md"
+              px="sm"
+              title="Choose export format"
+              aria-label="Choose export format"
+              style={{ borderLeft: "1px solid var(--mantine-color-rust-8)" }}
+            >
               <ChevronUp size={18} />
             </Button>
           </Menu.Target>

@@ -1,6 +1,6 @@
 "use client";
 
-import {Badge, Checkbox, Text } from "@mantine/core";
+import { Badge, Checkbox, Text } from "@mantine/core";
 import type { Units } from "@/app/lib/units";
 import { draftInset, type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
@@ -23,6 +23,7 @@ export function WyrmwoodPanel({
       <Section title="Accessory">
         <FieldGroup>
           <Field
+            icon="wall"
             label="Base width"
             value={params.width}
             units={units}
@@ -33,6 +34,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="wall"
             label="Base length"
             value={params.length}
             units={units}
@@ -43,6 +45,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="height"
             label="Thickness"
             value={params.thickness}
             units={units}
@@ -53,6 +56,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="draftAngle"
             label="Draft angle"
             value={params.draftAngle}
             units={units}
@@ -64,6 +68,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="side"
             label="Corner radius"
             value={params.cornerRadius}
             units={units}
@@ -74,6 +79,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="wall"
             label="Wall"
             value={params.wallThickness}
             units={units}
@@ -85,6 +91,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="height"
             label="Floor"
             value={params.floorThickness}
             units={units}
@@ -96,6 +103,7 @@ export function WyrmwoodPanel({
             }}
           />
           <Field
+            icon="bottom"
             label="Bottom fillet"
             value={params.bottomFillet}
             units={units}
@@ -131,6 +139,7 @@ export function WyrmwoodPanel({
         {params.magnetsEnabled && (
           <FieldGroup>
             <Field
+              icon="magnetCount"
               label="Count"
               value={params.magnetCount}
               units={units}
@@ -142,6 +151,7 @@ export function WyrmwoodPanel({
               }}
             />
             <Field
+              icon="magnetDiameter"
               label="Diameter"
               value={params.magnetDiameter}
               units={units}
@@ -153,6 +163,7 @@ export function WyrmwoodPanel({
               }}
             />
             <Field
+              icon="height"
               label="Depth"
               value={params.magnetDepth}
               units={units}
@@ -164,6 +175,7 @@ export function WyrmwoodPanel({
               }}
             />
             <Field
+              icon="magnetOffset"
               label="End inset"
               value={params.magnetInset}
               units={units}
@@ -195,6 +207,7 @@ export function WyrmwoodPanel({
         {params.cardSlotEnabled && (
           <FieldGroup>
             <Field
+              icon="cardWidth"
               label="Slot width"
               value={params.cardSlotWidth}
               units={units}
@@ -205,6 +218,7 @@ export function WyrmwoodPanel({
               }}
             />
             <Field
+              icon="cardHeight"
               label="Slot length"
               value={params.cardSlotLength}
               units={units}
