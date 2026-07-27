@@ -1,5 +1,5 @@
-import { TrayApp } from "@/app/TrayApp";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <TrayApp />;
+  redirect("/token-tray");
 }

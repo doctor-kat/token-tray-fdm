@@ -1,11 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { ActionIcon, Group, Tooltip, UnstyledButton } from "@mantine/core";
 import { Github } from "lucide-react";
 import { DESIGN_ORDER, DESIGNS, type DesignId } from "@/app/lib/designs";
 import { HEADER_SECTION } from "@/app/theme";
 
 const REPO_URL = "https://github.com/doctor-kat/token-tray-fdm";
+
+// Map design IDs to route paths
+const DESIGN_ROUTES: Record<DesignId, string> = {
+  "token-tray": "/token-tray",
+  "quick-draw": "/quick-draw",
+  wyrmwood: "/wyrmwood-accessory",
+};
 
 // The app-wide top bar: the design picker, then the source link. The picker
 // reads the registry rather than a local list so a newly registered design
@@ -15,7 +23,7 @@ export function DesignNav({
   onChange,
 }: {
   design: DesignId;
-  onChange: (id: DesignId) => void;
+  onChange?: (id: DesignId) => void;
 }) {
   return (
     <Group
@@ -40,11 +48,14 @@ export function DesignNav({
         >
           {DESIGN_ORDER.map((id) => {
             const active = id === design;
+            const href = DESIGN_ROUTES[id];
             return (
               <UnstyledButton
                 key={id}
+                component={Link}
+                href={href}
                 onClick={() => {
-                  onChange(id);
+                  onChange?.(id);
                 }}
                 title={DESIGNS[id].blurb}
                 c={active ? "rust.6" : "sand.8"}
