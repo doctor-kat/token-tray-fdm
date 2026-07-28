@@ -22,7 +22,6 @@ import { useTrayWorker } from "@/app/builder/useTrayWorker";
 import { CompartmentDock, type DimControl } from "@/app/CompartmentDock";
 import { DesignNav } from "@/app/DesignNav";
 import { ExportBar } from "@/app/ExportBar";
-import { CardTypeMenu } from "@/app/CardTypeMenu";
 import { LidTypeMenu } from "@/app/LidTypeMenu";
 import { DESIGNS, type DesignId } from "@/app/lib/designs";
 import {
@@ -396,7 +395,7 @@ export function TrayApp({ initialDesign = "token-tray" }: { initialDesign?: Desi
       a.href = url;
       a.download = `${(workerParams.modelName as string).trim() || design}.${fmt}`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     } finally {
       setExporting(false);
     }

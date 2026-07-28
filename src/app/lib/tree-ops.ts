@@ -155,10 +155,6 @@ export function removeCell(root: SplitNode, id: string): SplitNode {
       }
     }
 
-    if (node.children.length > 0 && children.length === 0) {
-      children = [];
-    }
-
     if (children.length === 1 && node.splitType) {
       // Collapse: adopt the single remaining child's content
       const only = children[0];
