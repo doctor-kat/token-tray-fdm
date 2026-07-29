@@ -1,7 +1,7 @@
 "use client";
 
 import { Columns2, Plus, Rows2, WandSparkles } from "lucide-react";
-import type * as React from "react";
+import { useMemo, type CSSProperties } from "react";
 import { layoutCells, type Rect, type SplitNode, type TrayParams } from "@/app/lib/model";
 import { dispVal, type Units } from "@/app/lib/units";
 
@@ -9,6 +9,69 @@ type Side = "left" | "right" | "top" | "bottom";
 
 function pct(v: number) {
   return `${(v * 100).toFixed(3)}%`;
+}
+
+// Build an SVG path string for a convex polygon with rounded corners.
+// `pts` is the polygon vertices in order (clockwise or counter-clockwise),
+// `r` is the corner radius in the same coordinate space. The radius is
+// clamped to half the shortest edge to avoid degenerate arcs. Returns a
+// simple polygon (no rounding) when the radius is negligible.
+function roundedPolygonPath(pts: Array<[number, number]>, r: number): string {
+  const n = pts.length;
+  if (n < 3) return "";
+
+  // Clamp radius to half the shortest edge so arcs never overlap.
+  let minHalf = Infinity;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const dx = pts[j][0] - pts[i][0];
+    const dy = pts[j][1] - pts[i][1];
+    minHalf = Math.min(minHalf, Math.sqrt(dx * dx + dy * dy) / 2);
+  }
+  const cr = Math.min(r, minHalf);
+  if (cr < 0.01) {
+    // Degenerate case — plain polygon path.
+    return `M ${pts.map((p) => `${p[0]} ${p[1]}`).join(" L ")} Z`;
+  }
+
+  // Signed area → orientation. Positive area (SVG math convention) means
+  // the polygon is visually clockwise on screen → sweep-flag = 1 (same as
+  // the canonical SVG rounded-rect path).
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    area += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1];
+  }
+  const sweep = area > 0 ? 1 : 0;
+
+  // Tangent points for each vertex: tp1 is where the incoming edge meets
+  // the arc, tp2 is where the arc meets the outgoing edge.
+  const tp1: Array<[number, number]> = [];
+  const tp2: Array<[number, number]> = [];
+  for (let i = 0; i < n; i++) {
+    const prev = pts[(i - 1 + n) % n];
+    const curr = pts[i];
+    const next = pts[(i + 1) % n];
+    const ax = curr[0] - prev[0];
+    const ay = curr[1] - prev[1];
+    const aLen = Math.sqrt(ax * ax + ay * ay);
+    const bx = next[0] - curr[0];
+    const by = next[1] - curr[1];
+    const bLen = Math.sqrt(bx * bx + by * by);
+    tp1.push([curr[0] - (cr * ax) / aLen, curr[1] - (cr * ay) / aLen]);
+    tp2.push([curr[0] + (cr * bx) / bLen, curr[1] + (cr * by) / bLen]);
+  }
+
+  // Assemble the path: M → arc → line → arc → … → Z
+  const fmt = (x: number, y: number) => `${x.toFixed(2)} ${y.toFixed(2)}`;
+  const parts = [`M ${fmt(tp1[0][0], tp1[0][1])}`];
+  for (let i = 0; i < n; i++) {
+    const next = (i + 1) % n;
+    parts.push(`A ${fmt(cr, cr)} 0 0 ${sweep} ${fmt(tp2[i][0], tp2[i][1])}`);
+    parts.push(`L ${fmt(tp1[next][0], tp1[next][1])}`);
+  }
+  parts.push("Z");
+  return parts.join(" ");
 }
 
 export function PlanView({
@@ -25,6 +88,7 @@ export function PlanView({
   onToggleLockW,
   onToggleLockL,
   fill = false,
+  trapezoid,
 }: {
   params: TrayParams;
   structure: SplitNode;
@@ -41,13 +105,25 @@ export function PlanView({
   // When true, the plan grows to fill its parent panel (desktop/tablet
   // side-by-side layout) instead of the fixed mobile card height.
   fill?: boolean;
-}) {
-  const innerRect: Rect = {
-    x: 0,
-    y: 0,
-    w: Math.max(1, params.width - 2 * params.outerWallThickness),
-    h: Math.max(1, params.height - 2 * params.outerWallThickness),
+  // Trapezoid plan shape for the wyrmwood accessory. When provided the
+  // outer shape is a trapezoid instead of a rounded rectangle.
+  trapezoid?: {
+    frontWidth: number;
+    backWidth: number;
+    length: number;
+    cornerRadius: number;
+    wallThickness: number;
+    innerRect: Rect;
   };
+}) {
+  const innerRect: Rect = trapezoid
+    ? trapezoid.innerRect
+    : {
+        x: 0,
+        y: 0,
+        w: Math.max(1, params.width - 2 * params.outerWallThickness),
+        h: Math.max(1, params.height - 2 * params.outerWallThickness),
+      };
   const cells = layoutCells(structure, innerRect, params.wallThickness);
 
   let selRect: Rect | null = null;
@@ -83,9 +159,33 @@ export function PlanView({
     };
   });
 
-  const radiusPx = Math.round((params.sideFillet * 300) / Math.max(params.width, params.height));
+  const radiusPx = trapezoid
+    ? Math.round((trapezoid.cornerRadius * 300) / Math.max(trapezoid.frontWidth, trapezoid.length))
+    : Math.round((params.sideFillet * 300) / Math.max(params.width, params.height));
 
   const ar = (params.width / params.height).toFixed(4);
+
+  // For trapezoid, cells are laid out in the inscribed rectangle but the outer
+  // container is wider (frontWidth). Offset cell positions so they're centered.
+  const cellBaseW = trapezoid ? trapezoid.frontWidth : innerRect.w;
+  const cellBaseH = trapezoid ? trapezoid.length : innerRect.h;
+  const cellOffsetX = (cellBaseW - innerRect.w) / 2;
+  const cellOffsetY = (cellBaseH - innerRect.h) / 2;
+
+  // Trapezoid SVG path with rounded corners.
+  const roundedTrapPath = useMemo(() => {
+    if (!trapezoid) return undefined;
+    const { frontWidth, backWidth, length: trapLen, cornerRadius } = trapezoid;
+    const inset = (frontWidth - backWidth) / 2;
+    // Clockwise order: back-left → back-right → front-right → front-left
+    const pts: Array<[number, number]> = [
+      [inset, 0],
+      [frontWidth - inset, 0],
+      [frontWidth, trapLen],
+      [0, trapLen],
+    ];
+    return roundedPolygonPath(pts, cornerRadius);
+  }, [trapezoid]);
 
   // Screen-space Y grows downward, but the model's Y axis (shared with the
   // 3D view) grows upward, so every Y coordinate here must be flipped to
@@ -94,12 +194,12 @@ export function PlanView({
   const inserts: Array<{ key: string; left: string; top: string; onClick: () => void }> = [];
   if (selRect) {
     const r = selRect as Rect;
-    const cx = (r.x + r.w / 2) / innerRect.w;
-    const cy = 1 - (r.y + r.h / 2) / innerRect.h;
-    const x0 = r.x / innerRect.w;
-    const x1 = (r.x + r.w) / innerRect.w;
-    const yTop = 1 - (r.y + r.h) / innerRect.h;
-    const yBottom = 1 - r.y / innerRect.h;
+    const cx = (r.x + r.w / 2 + cellOffsetX) / cellBaseW;
+    const cy = 1 - (r.y + r.h / 2 + cellOffsetY) / cellBaseH;
+    const x0 = (r.x + cellOffsetX) / cellBaseW;
+    const x1 = (r.x + r.w + cellOffsetX) / cellBaseW;
+    const yTop = 1 - (r.y + r.h + cellOffsetY) / cellBaseH;
+    const yBottom = 1 - (r.y + cellOffsetY) / cellBaseH;
     inserts.push({
       key: "L",
       left: `calc(${pct(x0)} - 11px)`,
@@ -172,18 +272,46 @@ export function PlanView({
           // the mobile card is short, so it binds to height instead.
           ...(fill ? { width: "100%", maxHeight: "100%" } : { height: "100%", maxWidth: "100%" }),
           aspectRatio: ar,
-          background: "var(--mantine-color-sand-3)",
-          border: "1.5px solid var(--mantine-color-sand-7)",
-          borderRadius: `${radiusPx}px`,
+          ...(trapezoid
+            ? { background: "transparent" }
+            : {
+                background: "var(--mantine-color-sand-3)",
+                border: "1.5px solid var(--mantine-color-sand-7)",
+                borderRadius: `${radiusPx}px`,
+              }),
         }}
       >
-        {/* Width dimension */}
+        {/* Trapezoid background drawn via SVG so the border and corner rounding
+            follow the shape correctly. */}
+        {trapezoid && roundedTrapPath && (
+          <svg
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+            viewBox={`0 0 ${trapezoid.frontWidth} ${trapezoid.length}`}
+            preserveAspectRatio="none"
+          >
+            <path
+              d={roundedTrapPath}
+              fill="var(--mantine-color-sand-3)"
+              stroke="var(--mantine-color-sand-7)"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
+        {/* Width dimension — for trapezoid the wider end is at the bottom (plan bottom = tray front). */}
         <div
           style={{
             position: "absolute",
             left: 0,
             right: 0,
-            top: -30,
+            ...(trapezoid ? { bottom: -30 } : { top: -30 }),
             height: 18,
             pointerEvents: "none",
           }}
@@ -203,7 +331,7 @@ export function PlanView({
               e.stopPropagation();
               onToggleLockW();
             }}
-            title="Tray width — tap the wand to auto-fit"
+            title={trapezoid ? "Front width (wider end)" : "Tray width — tap the wand to auto-fit"}
             style={{
               pointerEvents: "auto",
               position: "absolute",
@@ -227,7 +355,7 @@ export function PlanView({
               size={24}
               color={lockW ? "var(--mantine-color-sand-7)" : "var(--mantine-color-rust-6)"}
             />
-            {dispVal(params.width, units)} {units}
+            {dispVal(trapezoid ? trapezoid.frontWidth : params.width, units)} {units}
           </button>
         </div>
 
@@ -296,10 +424,10 @@ export function PlanView({
             className="plan-bin"
             style={{
               position: "absolute",
-              left: `calc(${pct(cell.rect.x / innerRect.w)} + 2px)`,
-              top: `calc(${pct(1 - (cell.rect.y + cell.rect.h) / innerRect.h)} + 2px)`,
-              width: `calc(${pct(cell.rect.w / innerRect.w)} - 4px)`,
-              height: `calc(${pct(cell.rect.h / innerRect.h)} - 4px)`,
+              left: `calc(${pct((cell.rect.x + cellOffsetX) / cellBaseW)} + 2px)`,
+              top: `calc(${pct(1 - (cell.rect.y + cell.rect.h + cellOffsetY) / cellBaseH)} + 2px)`,
+              width: `calc(${pct(cell.rect.w / cellBaseW)} - 4px)`,
+              height: `calc(${pct(cell.rect.h / cellBaseH)} - 4px)`,
               boxSizing: "border-box",
               borderRadius: `${radiusPx}px`,
               cursor: "pointer",
@@ -426,7 +554,7 @@ export function PlanView({
   );
 }
 
-const splitBtnStyle: React.CSSProperties = {
+const splitBtnStyle: CSSProperties = {
   width: 34,
   height: 34,
   borderRadius: "50%",
@@ -440,7 +568,7 @@ const splitBtnStyle: React.CSSProperties = {
   boxShadow: "0 2px 6px rgba(0,0,0,.4)",
 };
 
-const addBtnStyle: React.CSSProperties = {
+const addBtnStyle: CSSProperties = {
   width: 22,
   height: 22,
   borderRadius: "50%",
