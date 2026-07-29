@@ -48,7 +48,7 @@ import {
   splitCell,
 } from "@/app/lib/tree-ops";
 import { dispVal, type Units } from "@/app/lib/units";
-import { defaultWyrmwoodParams, topRect, type WyrmwoodParams } from "@/app/lib/wyrmwood";
+import { defaultWyrmwoodParams, wyrmwoodPlanMeta, type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { PlanView } from "@/app/PlanView";
 import { PrintEstimate } from "@/app/PrintEstimate";
 import { QuickDrawPanel } from "@/app/QuickDrawPanel";
@@ -406,23 +406,28 @@ export function TrayApp({ initialDesign = "token-tray" }: { initialDesign?: Desi
   // Quick Draw has no editable compartment tree, so it shows the 3D view alone.
   const hasPlan = design !== "quick-draw";
 
-  // The plan view speaks TrayParams. For the accessory that means its *top*
-  // face, since that's the opening the compartments are laid out on.
+  // The plan view speaks TrayParams. For the accessory that means its full
+  // outer trapezoid dimensions (the widest face), with an inner rect override
+  // for cell layout at the narrower back end.
   const planParams: TrayParams = React.useMemo(() => {
     if (design !== "wyrmwood") {
       return parameters;
     }
 
-    const top = topRect(wyrmwood);
     return {
       ...parameters,
-      width: top.w,
-      height: top.h,
+      width: wyrmwood.width,
+      height: wyrmwood.length,
       depth: wyrmwood.thickness,
-      outerWallThickness: wyrmwood.wallThickness,
+      outerWallThickness: 0,
       wallThickness: wyrmwood.wallThickness,
     };
   }, [design, parameters, wyrmwood]);
+
+  const planTrapezoid = React.useMemo(() => {
+    if (design !== "wyrmwood") return undefined;
+    return wyrmwoodPlanMeta(wyrmwood);
+  }, [design, wyrmwood]);
 
   const summary =
     design === "quick-draw"
@@ -571,6 +576,7 @@ export function TrayApp({ initialDesign = "token-tray" }: { initialDesign?: Desi
         toggleFlag("lockL");
       }}
       fill={sideBySide}
+      trapezoid={planTrapezoid}
     />
   );
 

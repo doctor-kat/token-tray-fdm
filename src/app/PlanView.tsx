@@ -3,6 +3,7 @@
 import { Columns2, Plus, Rows2, WandSparkles } from "lucide-react";
 import { useMemo, type CSSProperties } from "react";
 import { layoutCells, type Rect, type SplitNode, type TrayParams } from "@/app/lib/model";
+import { layoutWyrmwoodCells, type TrapezoidCell } from "@/app/lib/wyrmwood";
 import { dispVal, type Units } from "@/app/lib/units";
 
 type Side = "left" | "right" | "top" | "bottom";
@@ -124,12 +125,51 @@ export function PlanView({
         w: Math.max(1, params.width - 2 * params.outerWallThickness),
         h: Math.max(1, params.height - 2 * params.outerWallThickness),
       };
+
+  // For the trapezoid design, lay cells out as trapezoid polygons.
+  const trapCells: TrapezoidCell[] | null = useMemo(() => {
+    if (!trapezoid) return null;
+    const { frontWidth, backWidth, length: trapLen, wallThickness: wall } = trapezoid;
+    const innerFw = Math.max(2, frontWidth - 2 * wall);
+    const innerBw = Math.max(2, backWidth - 2 * wall);
+    const innerL = Math.max(2, trapLen - 2 * wall);
+    const hw = innerL / 2;
+    return layoutWyrmwoodCells(structure, {
+      yBack: -hw,
+      yFront: hw,
+      xLeftBack: -innerBw / 2,
+      xRightBack: innerBw / 2,
+      xLeftFront: -innerFw / 2,
+      xRightFront: innerFw / 2,
+    }, wall);
+  }, [trapezoid, structure]);
+
+  // Rectangular cells (used for non-trapezoid plan views and also for the
+  // split/insert button positioning in both modes).
   const cells = layoutCells(structure, innerRect, params.wallThickness);
 
+  // Build a bounding Rect from trapezoid cell corners (in SVG viewBox coords).
+  const trapSelRect: Rect | null = useMemo(() => {
+    if (!trapCells || !trapezoid || !selectedId) return null;
+    const cell = trapCells.find((c) => c.id === selectedId);
+    if (!cell) return null;
+    const { frontWidth, length } = trapezoid;
+    const svgCorners = cell.corners.map(([x, y]) => [x + frontWidth / 2, y + length / 2] as const);
+    const xs = svgCorners.map((c) => c[0]);
+    const ys = svgCorners.map((c) => c[1]);
+    return {
+      x: Math.min(...xs),
+      y: Math.min(...ys),
+      w: Math.max(...xs) - Math.min(...xs),
+      h: Math.max(...ys) - Math.min(...ys),
+    };
+  }, [trapCells, trapezoid, selectedId]);
+
+  // Rectangular selRect for non-trapezoid mode (using LeafCell.rect positions).
   let selRect: Rect | null = null;
   const leaves = cells.map((c) => {
     const isSel = c.id === selectedId;
-    if (isSel) {
+    if (isSel && !trapezoid) {
       selRect = c.rect;
     }
 
@@ -158,6 +198,9 @@ export function PlanView({
       bd,
     };
   });
+
+  // Effective selRect: use trapSelRect in trapezoid mode, selRect otherwise.
+  const effectiveSelRect = trapezoid ? trapSelRect : selRect;
 
   const radiusPx = trapezoid
     ? Math.round((trapezoid.cornerRadius * 300) / Math.max(trapezoid.frontWidth, trapezoid.length))
@@ -190,49 +233,45 @@ export function PlanView({
   // Screen-space Y grows downward, but the model's Y axis (shared with the
   // 3D view) grows upward, so every Y coordinate here must be flipped to
   // keep the plan view's top/bottom aligned with the actual 3D output.
+  // For the trapezoid case, coordinates are already in SVG viewBox space
+  // (Y-down, with Y=0 at the back edge), so no flip is needed.
   let splitPos: { left: string; top: string } | null = null;
   const inserts: Array<{ key: string; left: string; top: string; onClick: () => void }> = [];
-  if (selRect) {
-    const r = selRect as Rect;
-    const cx = (r.x + r.w / 2 + cellOffsetX) / cellBaseW;
-    const cy = 1 - (r.y + r.h / 2 + cellOffsetY) / cellBaseH;
-    const x0 = (r.x + cellOffsetX) / cellBaseW;
-    const x1 = (r.x + r.w + cellOffsetX) / cellBaseW;
-    const yTop = 1 - (r.y + r.h + cellOffsetY) / cellBaseH;
-    const yBottom = 1 - (r.y + cellOffsetY) / cellBaseH;
-    inserts.push({
-      key: "L",
-      left: `calc(${pct(x0)} - 11px)`,
-      top: `calc(${pct(cy)} - 11px)`,
-      onClick() {
-        onAddNeighbor("left");
-      },
-    });
-    inserts.push({
-      key: "R",
-      left: `calc(${pct(x1)} - 11px)`,
-      top: `calc(${pct(cy)} - 11px)`,
-      onClick() {
-        onAddNeighbor("right");
-      },
-    });
-    inserts.push({
-      key: "T",
-      left: `calc(${pct(cx)} - 11px)`,
-      top: `calc(${pct(yTop)} - 11px)`,
-      onClick() {
-        onAddNeighbor("top");
-      },
-    });
-    inserts.push({
-      key: "B",
-      left: `calc(${pct(cx)} - 11px)`,
-      top: `calc(${pct(yBottom)} - 11px)`,
-      onClick() {
-        onAddNeighbor("bottom");
-      },
-    });
-    splitPos = { left: `calc(${pct(cx)} - 39px)`, top: `calc(${pct(cy)} - 17px)` };
+  if (effectiveSelRect) {
+    const r = effectiveSelRect as Rect;
+    if (trapezoid) {
+      // Trapezoid: coordinates are in SVG viewBox space (Y-down), viewBox
+      // is 0 0 frontWidth length — divide by these for percentages.  No Y flip.
+      const fw = trapezoid.frontWidth;
+      const tl = trapezoid.length;
+      const cx = (r.x + r.w / 2) / fw;
+      const cy = (r.y + r.h / 2) / tl;
+      const x0 = r.x / fw;
+      const x1 = (r.x + r.w) / fw;
+      const yTop = r.y / tl;
+      const yBottom = (r.y + r.h) / tl;
+      inserts.push(
+        { key: "L", left: `calc(${pct(x0)} - 11px)`, top: `calc(${pct(cy)} - 11px)`, onClick: () => onAddNeighbor("left") },
+        { key: "R", left: `calc(${pct(x1)} - 11px)`, top: `calc(${pct(cy)} - 11px)`, onClick: () => onAddNeighbor("right") },
+        { key: "T", left: `calc(${pct(cx)} - 11px)`, top: `calc(${pct(yTop)} - 11px)`, onClick: () => onAddNeighbor("top") },
+        { key: "B", left: `calc(${pct(cx)} - 11px)`, top: `calc(${pct(yBottom)} - 11px)`, onClick: () => onAddNeighbor("bottom") },
+      );
+      splitPos = { left: `calc(${pct(cx)} - 39px)`, top: `calc(${pct(cy)} - 17px)` };
+    } else {
+      const cx = (r.x + r.w / 2 + cellOffsetX) / cellBaseW;
+      const cy = 1 - (r.y + r.h / 2 + cellOffsetY) / cellBaseH;
+      const x0 = (r.x + cellOffsetX) / cellBaseW;
+      const x1 = (r.x + r.w + cellOffsetX) / cellBaseW;
+      const yTop = 1 - (r.y + r.h + cellOffsetY) / cellBaseH;
+      const yBottom = 1 - (r.y + cellOffsetY) / cellBaseH;
+      inserts.push(
+        { key: "L", left: `calc(${pct(x0)} - 11px)`, top: `calc(${pct(cy)} - 11px)`, onClick: () => onAddNeighbor("left") },
+        { key: "R", left: `calc(${pct(x1)} - 11px)`, top: `calc(${pct(cy)} - 11px)`, onClick: () => onAddNeighbor("right") },
+        { key: "T", left: `calc(${pct(cx)} - 11px)`, top: `calc(${pct(yTop)} - 11px)`, onClick: () => onAddNeighbor("top") },
+        { key: "B", left: `calc(${pct(cx)} - 11px)`, top: `calc(${pct(yBottom)} - 11px)`, onClick: () => onAddNeighbor("bottom") },
+      );
+      splitPos = { left: `calc(${pct(cx)} - 39px)`, top: `calc(${pct(cy)} - 17px)` };
+    }
   }
 
   return (
@@ -281,8 +320,8 @@ export function PlanView({
               }),
         }}
       >
-        {/* Trapezoid background drawn via SVG so the border and corner rounding
-            follow the shape correctly. */}
+        {/* Trapezoid background + cell polygons drawn via SVG so the border,
+            corner rounding, and compartment shapes follow the trapezoid correctly. */}
         {trapezoid && roundedTrapPath && (
           <svg
             style={{
@@ -290,19 +329,116 @@ export function PlanView({
               inset: 0,
               width: "100%",
               height: "100%",
-              pointerEvents: "none",
-              zIndex: 0,
+              pointerEvents: "auto",
+              zIndex: 1,
             }}
             viewBox={`0 0 ${trapezoid.frontWidth} ${trapezoid.length}`}
             preserveAspectRatio="none"
           >
+            {/* Outer trapezoid — click to deselect */}
             <path
               d={roundedTrapPath}
               fill="var(--mantine-color-sand-3)"
               stroke="var(--mantine-color-sand-7)"
               strokeWidth={1.5}
               vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "auto", cursor: "pointer" }}
+              onClick={onDeselect}
             />
+            {/* Shared scoop-hatch pattern */}
+            <defs>
+              <pattern id="sc-h" patternUnits="userSpaceOnUse" width={4} height={4} patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="4" stroke="rgba(194,96,58,.16)" strokeWidth={1} />
+              </pattern>
+            </defs>
+            {/* Cell polygons with rounded corners */}
+            {trapCells?.map((tCell) => {
+              const isSel = tCell.id === selectedId;
+              const isCustom =
+                tCell.customization.depth != null ||
+                tCell.customization.bottomFillet != null ||
+                !tCell.customization.autoW ||
+                !tCell.customization.autoL;
+              const isScoop = (tCell.customization.bottomFillet ?? params.bottomFillet) > 0;
+              const fill = isSel
+                ? "var(--mantine-color-rust-1)"
+                : isCustom
+                  ? "var(--mantine-color-sand-2)"
+                  : "var(--mantine-color-sand-1)";
+              const stroke = isSel
+                ? "var(--mantine-color-rust-6)"
+                : isCustom
+                  ? "var(--mantine-color-rust-3)"
+                  : "var(--mantine-color-sand-6)";
+              const { frontWidth, length } = trapezoid;
+
+              // Corners in SVG viewBox coords (model coords shifted to top-left origin)
+              const svgPts: Array<[number, number]> = tCell.corners.map(
+                ([x, y]) => [x + frontWidth / 2, y + length / 2],
+              );
+
+              // Rounded polygon path matching the outer trapezoid's corner radius
+              const cellCorner = Math.min(4, trapezoid.cornerRadius);
+              const cellPath = roundedPolygonPath(svgPts, cellCorner);
+
+              // Dimensions: show the smaller (back) edge width — the limiting fit
+              const backW = Math.abs(tCell.corners[1][0] - tCell.corners[0][0]);
+              const cellH = Math.abs(tCell.corners[2][1] - tCell.corners[0][1]);
+
+              // Centroid for text / ellipse positioning
+              const cx = svgPts.reduce((s, p) => s + p[0], 0) / svgPts.length;
+              const cy = svgPts.reduce((s, p) => s + p[1], 0) / svgPts.length;
+
+              return (
+                <g key={tCell.id}>
+                  <path
+                    d={cellPath}
+                    fill={fill}
+                    stroke={stroke}
+                    strokeWidth={1.5}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(tCell.id);
+                    }}
+                  />
+                  {isScoop && (
+                    <>
+                      <path
+                        d={cellPath}
+                        fill="url(#sc-h)"
+                        style={{ pointerEvents: "none" }}
+                      />
+                      <ellipse
+                        cx={cx.toFixed(2)}
+                        cy={cy.toFixed(2)}
+                        rx={(backW * 0.3).toFixed(2)}
+                        ry={(cellH * 0.26).toFixed(2)}
+                        fill={fill}
+                        stroke="var(--mantine-color-rust-3)"
+                        strokeWidth={1.5}
+                        style={{ pointerEvents: "none" }}
+                      />
+                    </>
+                  )}
+                  <text
+                    x={cx.toFixed(2)}
+                    y={(cy + 4).toFixed(2)}
+                    textAnchor="middle"
+                    fill="var(--mantine-color-sand-9)"
+                    style={{
+                      fontFamily: "var(--font-space-mono), monospace",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {Math.round(backW)} × {Math.round(cellH)}
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         )}
         {/* Width dimension — for trapezoid the wider end is at the bottom (plan bottom = tray front). */}
@@ -413,7 +549,7 @@ export function PlanView({
           </button>
         </div>
 
-        {leaves.map(({ cell, bg, bd, scoop }) => (
+        {!trapezoid && leaves.map(({ cell, bg, bd, scoop }) => (
           <button
             key={cell.id}
             type="button"

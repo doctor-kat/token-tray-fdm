@@ -70,3 +70,7 @@ Next 16 builds with **Turbopack** by default, which handles async WASM natively.
   - The palette and fonts live in `src/app/theme.ts` — two custom color tuples (`rust`, the primary accent, and `sand`, the warm paper surfaces). Use theme colors (`bg="sand.4"`, `c="rust.6"`) instead of hex literals.
   - `PlanView.tsx` deliberately does **not** use Mantine: it hand-draws the 2D compartment layout, so its hover styles stay in `globals.css`.
 - `token-tray-fdm.js` at the repo root is the original reverse-engineered generator that `src/app/lib/model.ts` was adapted from — reference only, not part of the build.
+- `docs/` — per-design parameter reference with ASCII art for each design, so there's no ambiguity about what each parameter controls or how axes are oriented. Read the relevant file before changing or discussing a design's geometry:
+  - [`docs/wyrmwood-accessory.md`](docs/wyrmwood-accessory.md) — trapezoid plan shape, interior angle, magnets
+  - [`docs/token-tray.md`](docs/token-tray.md) — rectangular tray, compartment layout, lid types
+  - [`docs/quick-draw.md`](docs/quick-draw.md) — card deck box, derived dimensions, finger scoops

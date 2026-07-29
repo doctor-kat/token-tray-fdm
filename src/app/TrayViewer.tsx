@@ -75,7 +75,7 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
     scene.background = null;
 
     const camera = new PerspectiveCamera(45, mount.clientWidth / mount.clientHeight, 1, 4000);
-    camera.position.set(160, -160, 140);
+    camera.position.set(160, 160, 140);
     camera.up.set(0, 0, 1);
 
     const renderer = new WebGLRenderer({ antialias: true, alpha: true });
@@ -250,7 +250,7 @@ export function TrayViewer({ mesh, loading }: { mesh: MeshData | null; loading: 
       // Distance that fits the bounding sphere, plus a small margin.
       const distance = (sphere.radius / Math.sin(fov / 2)) * 1.1;
       st.controls.target.copy(sphere.center);
-      const dir = new Vector3(1, -1, 0.9).normalize();
+      const dir = new Vector3(1, 1, 0.9).normalize();
       st.camera.position.copy(sphere.center.clone().add(dir.multiplyScalar(distance)));
       st.camera.updateProjectionMatrix();
       framedOnceRef.current = true;

@@ -2,7 +2,7 @@
 
 import { Badge, Checkbox, Text } from "@mantine/core";
 import type { Units } from "@/app/lib/units";
-import { draftInset, type WyrmwoodParams } from "@/app/lib/wyrmwood";
+import { type WyrmwoodParams } from "@/app/lib/wyrmwood";
 import { Field, FieldGroup, Section } from "@/app/TraySettingsBand";
 
 export function WyrmwoodPanel({
@@ -14,9 +14,11 @@ export function WyrmwoodPanel({
   units: Units;
   onChange: (patch: Partial<WyrmwoodParams>) => void;
 }) {
-  const inset = draftInset(params);
-  const topW = Math.max(0, params.width - 2 * inset);
-  const topL = Math.max(0, params.length - 2 * inset);
+  const rad = (params.interiorAngle * Math.PI) / 180;
+  const taper = params.length / Math.tan(rad);
+  const backW = Math.max(0, params.width - 2 * taper);
+  const frontInner = Math.max(0, params.width - 2 * params.wallThickness);
+  const backInner = Math.max(0, backW - 2 * params.wallThickness);
 
   return (
     <>
@@ -57,14 +59,14 @@ export function WyrmwoodPanel({
           />
           <Field
             icon="draftAngle"
-            label="Draft angle"
-            value={params.draftAngle}
+            label="Interior angle"
+            value={params.interiorAngle}
             units={units}
             rawUnit="°"
-            min={0}
-            max={45}
+            min={30}
+            max={90}
             onChange={(deg) => {
-              onChange({ draftAngle: deg });
+              onChange({ interiorAngle: deg });
             }}
           />
           <Field
@@ -116,7 +118,7 @@ export function WyrmwoodPanel({
         </FieldGroup>
 
         <Text fz="xs" c="dimmed">
-          top face {topW.toFixed(1)} × {topL.toFixed(1)} — walls lean in {inset.toFixed(1)} mm per
+          front {frontInner.toFixed(1)} → back {backInner.toFixed(1)} — tapers {taper.toFixed(1)} mm per
           side
         </Text>
       </Section>
